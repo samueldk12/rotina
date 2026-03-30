@@ -113,6 +113,12 @@
         <h2 id="section-tips-title">Dicas de Otimização</h2>
       </div>
       <div class="tips-scroll" id="home-tips"></div>
+
+      <!-- Health Section -->
+      <div class="section-label" style="margin-top:8px;">
+        <h2 id="section-health-title">Saúde do Dia</h2>
+      </div>
+      <div class="health-section" id="home-health"></div>
     </section>
 
     <!-- VIEW: WEEK -->
@@ -120,6 +126,18 @@
       <div class="week-header">
         <h2 id="week-view-title">Semana Completa</h2>
         <p>Seu plano de estudos e treinos</p>
+      </div>
+      <!-- Week filter -->
+      <div class="week-filter-row" id="week-filter-row">
+        <button class="week-filter-btn active" id="wf-all" onclick="setWeekFilter('all')">
+          <span id="wf-all-icon"></span> Tudo
+        </button>
+        <button class="week-filter-btn" id="wf-study" onclick="setWeekFilter('study')">
+          <span id="wf-study-icon"></span> Estudos
+        </button>
+        <button class="week-filter-btn" id="wf-workout" onclick="setWeekFilter('workout')">
+          <span id="wf-workout-icon"></span> Exercícios
+        </button>
       </div>
       <div class="day-pills" id="week-day-pills"></div>
       <div class="day-detail" id="week-day-detail"></div>
@@ -145,6 +163,19 @@
           Clique no ícone de vídeo em cada exercício para ver a referência
         </div>
       </div>
+    </section>
+
+    <!-- VIEW: STUDY -->
+    <section id="view-study" class="view">
+      <div class="week-header">
+        <h2 id="study-view-title">Modo de Estudo</h2>
+        <p>Escolha uma matéria e comece a sessão</p>
+      </div>
+      <!-- Today's study overview -->
+      <div class="study-overview-card" id="study-overview-today"></div>
+      <!-- All subjects from current week -->
+      <div class="sp-section-label" id="study-subjects-title" style="padding:0 20px;margin-bottom:12px;"></div>
+      <div class="study-subject-grid" id="study-subject-grid"></div>
     </section>
 
     <!-- VIEW: LIBRARY -->
@@ -186,6 +217,13 @@
       </svg>
       <span>Semana</span>
     </button>
+    <button class="nav-btn" id="nav-study" onclick="navigateTo('study')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/>
+        <path d="M9.5 2.5h5"/><path d="M12 2.5V5"/>
+      </svg>
+      <span>Estudar</span>
+    </button>
     <button class="nav-btn" id="nav-workout" onclick="navigateTo('workout')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <path d="M6.5 6.5h11M6.5 17.5h11"/><line x1="6.5" y1="6.5" x2="6.5" y2="17.5"/>
@@ -200,11 +238,88 @@
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
         <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
       </svg>
-      <span>Exercícios</span>
+      <span>Exerc.</span>
     </button>
   </nav>
 
 </div><!-- #app -->
+
+<!-- STUDY MODE PANEL (slide-up sheet) -->
+<div id="study-panel" class="study-panel-overlay">
+  <div class="study-panel-sheet" role="dialog" aria-modal="true">
+    <div class="modal-handle"></div>
+    <div class="study-panel-header">
+      <div>
+        <div class="study-panel-title" id="sp-title">Modo de Estudo</div>
+        <div class="study-panel-sub" id="sp-sub">Selecione o modo e comece</div>
+      </div>
+      <button class="modal-close" onclick="closeStudyPanel()" id="sp-close-btn"></button>
+    </div>
+    <!-- Subject selector -->
+    <div class="sp-section-label">Matéria</div>
+    <div class="sp-subject-list" id="sp-subject-list"></div>
+    <!-- Mode selector -->
+    <div class="sp-section-label">Modo de Estudo</div>
+    <div class="sp-mode-row">
+      <button class="sp-mode-btn active" id="sp-mode-continuous" onclick="setStudyMode('continuous')">
+        <span id="sp-icon-continuous"></span>
+        <span>Contínuo</span>
+      </button>
+      <button class="sp-mode-btn" id="sp-mode-pomodoro" onclick="setStudyMode('pomodoro')">
+        <span id="sp-icon-pomodoro"></span>
+        <span>Pomodoro</span>
+      </button>
+    </div>
+    <!-- Pomodoro config (hidden by default) -->
+    <div class="sp-pomodoro-config" id="sp-pomodoro-config">
+      <div class="sp-config-row">
+        <label>Foco (min)</label>
+        <div class="sp-num-control">
+          <button onclick="adjustPomodoro('focus', -5)">−</button>
+          <span id="sp-focus-val">25</span>
+          <button onclick="adjustPomodoro('focus', 5)">+</button>
+        </div>
+      </div>
+      <div class="sp-config-row">
+        <label>Pausa (min)</label>
+        <div class="sp-num-control">
+          <button onclick="adjustPomodoro('break', -5)">−</button>
+          <span id="sp-break-val">5</span>
+          <button onclick="adjustPomodoro('break', 5)">+</button>
+        </div>
+      </div>
+    </div>
+    <!-- Study timer -->
+    <div class="sp-timer-section" id="sp-timer-section">
+      <div class="sp-timer-display" id="sp-timer-display">00:00</div>
+      <div class="sp-timer-label" id="sp-timer-label">Foco</div>
+      <div class="sp-circular-progress">
+        <svg viewBox="0 0 120 120" id="sp-progress-svg">
+          <circle class="sp-circle-bg" cx="60" cy="60" r="50"/>
+          <circle class="sp-circle-fill" id="sp-circle-fill" cx="60" cy="60" r="50"
+                  stroke-dasharray="314" stroke-dashoffset="314"/>
+        </svg>
+        <div class="sp-timer-center">
+          <div class="sp-timer-display-inner" id="sp-timer-inner">00:00</div>
+          <div class="sp-phase-label" id="sp-phase-label">Pronto</div>
+        </div>
+      </div>
+      <div class="sp-control-btns">
+        <button class="sp-ctrl-btn" id="sp-btn-start" onclick="toggleStudyTimer()">Iniciar</button>
+        <button class="sp-ctrl-btn secondary" id="sp-btn-reset" onclick="resetStudyTimer()">Reiniciar</button>
+      </div>
+    </div>
+    <!-- Goal progress -->
+    <div class="sp-goal-section" id="sp-goal-section">
+      <div class="sp-section-label" style="padding:0;margin-bottom:10px;">Meta da Matéria</div>
+      <div class="sp-goal-info" id="sp-goal-info"></div>
+      <div class="sp-goal-bar-wrap">
+        <div class="sp-goal-bar-fill" id="sp-goal-bar-fill"></div>
+      </div>
+      <div class="sp-goal-remaining" id="sp-goal-remaining"></div>
+    </div>
+  </div>
+</div>
 
 <!-- MEDIA MODAL -->
 <div id="media-modal" class="modal-overlay">
@@ -282,6 +397,28 @@
     filterTabs.forEach((t, i) => {
       t.innerHTML = `<span class="tab-icon">${filterIcons[i]||''}</span> ${t.textContent.trim()}`;
     });
+    // Study view title
+    const svt = document.getElementById('study-view-title');
+    if (svt) svt.innerHTML = `<span class="section-icon">${icon('stopwatch', 18)}</span> Modo de Estudo`;
+    // Week filter button icons
+    const wfAll = document.getElementById('wf-all-icon');
+    const wfStudy = document.getElementById('wf-study-icon');
+    const wfWork = document.getElementById('wf-workout-icon');
+    if (wfAll) wfAll.innerHTML = icon('filter', 13);
+    if (wfStudy) wfStudy.innerHTML = icon('book', 13);
+    if (wfWork) wfWork.innerHTML = icon('dumbbell', 13);
+    // Study panel icons
+    const spClose = document.getElementById('sp-close-btn');
+    if (spClose) spClose.innerHTML = ICONS.close;
+    const spCont = document.getElementById('sp-icon-continuous');
+    const spPomo = document.getElementById('sp-icon-pomodoro');
+    if (spCont) spCont.innerHTML = icon('infinity', 18);
+    if (spPomo) spPomo.innerHTML = icon('tomato', 18);
+    const subjectsTitle = document.getElementById('study-subjects-title');
+    if (subjectsTitle) subjectsTitle.innerHTML = `<span class="section-icon">${icon('book', 14)}</span> Matérias da Semana`;
+    // Health section title
+    const healthTitle = document.getElementById('section-health-title');
+    if (healthTitle) healthTitle.innerHTML = `<span class="section-icon">${icon('droplets', 18)}</span> Saúde do Dia`;
   });
 </script>
 </body>

@@ -516,15 +516,16 @@ const WEEKLY_ROUTINE = {
     dayShort: 'Dom',
     dayImage: 'images/lower_body.png',
     studies: [
-      { subject: 'Matemática', duration: '1h30', iconKey: 'ruler', color: '#a855f7' },
-      { subject: 'Raciocínio Lógico', duration: '1h', iconKey: 'brain', color: '#6366f1' },
-      { subject: 'Economia', duration: '30 min', iconKey: 'barChart', color: '#14b8a6' },
+      { subject: 'Matemática', duration: '1h30', durationMin: 90, iconKey: 'ruler', color: '#a855f7', goalHours: 10 },
+      { subject: 'Raciocínio Lógico', duration: '1h', durationMin: 60, iconKey: 'brain', color: '#6366f1', goalHours: 8 },
+      { subject: 'Economia', duration: '30 min', durationMin: 30, iconKey: 'barChart', color: '#14b8a6', goalHours: 5 },
     ],
     workout: {
       sheetId: 'ficha1',
       focus: 'Ombro, Perna, Alongamento',
       module: 'Módulo: Alongamento e Perna',
       label: 'Básica',
+      estimatedMin: 35,
     }
   },
   1: { // Segunda
@@ -532,15 +533,16 @@ const WEEKLY_ROUTINE = {
     dayShort: 'Seg',
     dayImage: 'images/ex_desenvolvimento.png',
     studies: [
-      { subject: 'Inteligência Artificial', duration: '2h30', iconKey: 'ai', color: '#00d4ff' },
-      { subject: 'Português', duration: '1h', iconKey: 'pen', color: '#f59e0b' },
-      { subject: 'Regimento Interno', duration: '30 min', iconKey: 'scale', color: '#64748b' },
+      { subject: 'Inteligência Artificial', duration: '2h30', durationMin: 150, iconKey: 'ai', color: '#00d4ff', goalHours: 20 },
+      { subject: 'Português', duration: '1h', durationMin: 60, iconKey: 'pen', color: '#f59e0b', goalHours: 15 },
+      { subject: 'Regimento Interno', duration: '30 min', durationMin: 30, iconKey: 'scale', color: '#64748b', goalHours: 6 },
     ],
     workout: {
       sheetId: 'ficha2',
       focus: 'Ombro, Perna, Alongamento',
       module: 'Módulo: Completo',
       label: 'Média – Perna e Ombro',
+      estimatedMin: 65,
     }
   },
   2: { // Terça
@@ -548,15 +550,16 @@ const WEEKLY_ROUTINE = {
     dayShort: 'Ter',
     dayImage: 'images/ex_remada.png',
     studies: [
-      { subject: 'Governança', duration: '1h', iconKey: 'building', color: '#8b5cf6' },
-      { subject: 'Computação', duration: '1h', iconKey: 'monitor', color: '#06b6d4' },
-      { subject: 'Português', duration: '1h', iconKey: 'pen', color: '#f59e0b' },
+      { subject: 'Governança', duration: '1h', durationMin: 60, iconKey: 'building', color: '#8b5cf6', goalHours: 8 },
+      { subject: 'Computação', duration: '1h', durationMin: 60, iconKey: 'monitor', color: '#06b6d4', goalHours: 12 },
+      { subject: 'Português', duration: '1h', durationMin: 60, iconKey: 'pen', color: '#f59e0b', goalHours: 15 },
     ],
     workout: {
       sheetId: 'ficha3',
       focus: 'Ombro, Costas, Peito, Bíceps, Tríceps, Antebraço',
       module: 'Módulo: Completo',
       label: 'Alta – Completo Costas/Ombro',
+      estimatedMin: 90,
     }
   },
   3: { // Quarta
@@ -564,14 +567,16 @@ const WEEKLY_ROUTINE = {
     dayShort: 'Qua',
     dayImage: 'images/ex_avanco.png',
     studies: [
-      { subject: 'Banco de Dados', duration: '3h', iconKey: 'database', color: '#f97316' },
-      { subject: 'Português', duration: '1h', iconKey: 'pen', color: '#f59e0b' },
+      { subject: 'Banco de Dados', duration: '3h', durationMin: 180, iconKey: 'database', color: '#f97316', goalHours: 18 },
+      { subject: 'Português', duration: '1h', durationMin: 60, iconKey: 'pen', color: '#f59e0b', goalHours: 15 },
     ],
     workout: {
       sheetId: 'ficha4',
       focus: 'Vôlei, Bíceps, Perna, Alongamento',
       module: 'Módulo: Alongamento e Perna',
       label: 'Básica – Vôlei + Recuperação',
+      estimatedMin: 45,
+      volleyballMin: 120,
     }
   },
   4: { // Quinta
@@ -579,15 +584,16 @@ const WEEKLY_ROUTINE = {
     dayShort: 'Qui',
     dayImage: 'images/ex_supino.png',
     studies: [
-      { subject: 'Computação', duration: '2h', iconKey: 'monitor', color: '#06b6d4' },
-      { subject: 'Engenharia de Software', duration: '1h', iconKey: 'gear', color: '#10b981' },
-      { subject: 'Português', duration: '1h', iconKey: 'pen', color: '#f59e0b' },
+      { subject: 'Computação', duration: '2h', durationMin: 120, iconKey: 'monitor', color: '#06b6d4', goalHours: 12 },
+      { subject: 'Engenharia de Software', duration: '1h', durationMin: 60, iconKey: 'gear', color: '#10b981', goalHours: 10 },
+      { subject: 'Português', duration: '1h', durationMin: 60, iconKey: 'pen', color: '#f59e0b', goalHours: 15 },
     ],
     workout: {
       sheetId: 'ficha3',
       focus: 'Ombro, Costas, Peito, Bíceps, Tríceps, Antebraço',
       module: 'Módulo: Completo',
       label: 'Média – Completo',
+      estimatedMin: 90,
     }
   },
   5: { // Sexta
@@ -595,14 +601,15 @@ const WEEKLY_ROUTINE = {
     dayShort: 'Sex',
     dayImage: 'images/ex_agachamento.png',
     studies: [
-      { subject: 'Redes', duration: '3h', iconKey: 'globe', color: '#22d3ee' },
-      { subject: 'Português', duration: '1h', iconKey: 'pen', color: '#f59e0b' },
+      { subject: 'Redes', duration: '3h', durationMin: 180, iconKey: 'globe', color: '#22d3ee', goalHours: 15 },
+      { subject: 'Português', duration: '1h', durationMin: 60, iconKey: 'pen', color: '#f59e0b', goalHours: 15 },
     ],
     workout: {
       sheetId: 'ficha2',
       focus: 'Ombro, Perna, Alongamento',
       module: 'Módulo: Alongamento e Perna',
       label: 'Alta – Perna e Ombro',
+      estimatedMin: 65,
     }
   },
   6: { // Sábado
@@ -610,15 +617,16 @@ const WEEKLY_ROUTINE = {
     dayShort: 'Sáb',
     dayImage: 'images/ex_triceps_frances.png',
     studies: [
-      { subject: 'Arquitetura de Computadores', duration: '1h30', iconKey: 'cpu', color: '#7c3aed' },
-      { subject: 'Segurança', duration: '1h30', iconKey: 'lock', color: '#dc2626' },
-      { subject: 'Português', duration: '1h', iconKey: 'pen', color: '#f59e0b' },
+      { subject: 'Arquitetura de Computadores', duration: '1h30', durationMin: 90, iconKey: 'cpu', color: '#7c3aed', goalHours: 10 },
+      { subject: 'Segurança', duration: '1h30', durationMin: 90, iconKey: 'lock', color: '#dc2626', goalHours: 10 },
+      { subject: 'Português', duration: '1h', durationMin: 60, iconKey: 'pen', color: '#f59e0b', goalHours: 15 },
     ],
     workout: {
       sheetId: 'ficha3',
       focus: 'Ombro, Costas, Peito, Bíceps, Tríceps, Antebraço',
       module: 'Módulo: Completo',
       label: 'Alta – "Esmaga"',
+      estimatedMin: 90,
     }
   }
 };

@@ -9,20 +9,34 @@ const state = {
   selectedSheet: 'ficha1',
   workoutProgress: {},
   studyProgress: {},
+  studyTimeLog: {},   // { 'Subject Key': totalMinutesStudied }
   activeTimer: null,
   timerSeconds: 0,
   timerRunning: false,
   modalExercise: null,
   modalTab: 'video',
   filterCategory: 'all',
+  weekFilter: 'all',  // 'all' | 'study' | 'workout'
   searchQuery: '',
   deferredInstallPrompt: null,
+  // Study mode
+  studyMode: 'continuous',  // 'continuous' | 'pomodoro'
+  studySubject: null,       // selected subject object
+  studyTimer: null,
+  studyTimerRunning: false,
+  studyTimerSeconds: 0,
+  studyTotalSeconds: 0,     // accumulated seconds in this session
+  pomodoroFocusMin: 25,
+  pomodoroBreakMin: 5,
+  pomodoroPhase: 'focus',   // 'focus' | 'break'
+  pomodoroCount: 0,
 };
 
 function saveState() {
   try {
     localStorage.setItem('rotina_workout', JSON.stringify(state.workoutProgress));
     localStorage.setItem('rotina_study', JSON.stringify(state.studyProgress));
+    localStorage.setItem('rotina_studytime', JSON.stringify(state.studyTimeLog));
   } catch(e) {}
 }
 
@@ -30,8 +44,10 @@ function loadState() {
   try {
     const w = localStorage.getItem('rotina_workout');
     const s = localStorage.getItem('rotina_study');
+    const t = localStorage.getItem('rotina_studytime');
     if (w) state.workoutProgress = JSON.parse(w);
     if (s) state.studyProgress = JSON.parse(s);
+    if (t) state.studyTimeLog = JSON.parse(t);
   } catch(e) {}
 }
 
@@ -163,6 +179,7 @@ function navigateTo(view) {
 
   if (view === 'home') renderHome();
   else if (view === 'week') renderWeek();
+  else if (view === 'study') renderStudyView();
   else if (view === 'workout') renderWorkout();
   else if (view === 'library') renderLibrary();
 }
@@ -229,6 +246,9 @@ function renderHome() {
       <div class="tip-text">${t.text}</div>
     </div>
   `).join('');
+
+  // Health
+  renderHealth();
 }
 
 function renderRing(id, done, total, stroke) {
@@ -253,6 +273,14 @@ function toggleStudy(dayNum, idx) {
 function startWorkoutToday() {
   state.selectedSheet = WEEKLY_ROUTINE[new Date().getDay()].workout.sheetId;
   navigateTo('workout');
+}
+
+// ---- WEEK FILTER ----
+function setWeekFilter(f) {
+  state.weekFilter = f;
+  document.querySelectorAll('.week-filter-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`wf-${f}`)?.classList.add('active');
+  renderWeekDayDetail(state.selectedDay);
 }
 
 // ---- RENDER: WEEK ----
@@ -286,37 +314,77 @@ function renderWeekDayDetail(dayNum) {
   const sheet = WORKOUT_SHEETS[routine.workout.sheetId];
   const isToday = dayNum === new Date().getDay();
   const workP = countWorkoutProgress(routine.workout.sheetId);
+  const wf = state.weekFilter;
 
-  const studiesHtml = routine.studies.map(s => `
-    <div class="subject-item">
-      <div class="subject-icon-sm" style="color:${s.color}">${icon(s.iconKey, 16)}</div>
-      <span class="subject-name">${s.subject}</span>
-      <span class="subject-time">${s.duration}</span>
+  // ---- Time forecast calculation ----
+  const studyTotalMin = routine.studies.reduce((acc, s) => acc + (s.durationMin || 0), 0);
+  const workoutMin = routine.workout.estimatedMin || 40;
+  const volleyballMin = routine.workout.volleyballMin || 0;
+  const totalActivityMin = studyTotalMin + workoutMin + volleyballMin;
+
+  function fmtMin(m) {
+    if (m <= 0) return '0 min';
+    const h = Math.floor(m / 60), r = m % 60;
+    return h > 0 ? (r > 0 ? `${h}h${r}min` : `${h}h`) : `${r}min`;
+  }
+
+  // Time forecast badge
+  const forecastHtml = `
+    <div class="day-time-forecast">
+      <div class="dtf-item">
+        <span class="dtf-icon" style="color:var(--cyan)">${icon('book', 14)}</span>
+        <span class="dtf-label">Estudos</span>
+        <span class="dtf-val">${fmtMin(studyTotalMin)}</span>
+      </div>
+      ${volleyballMin > 0 ? `
+      <div class="dtf-item">
+        <span class="dtf-icon" style="color:var(--blue)">${icon('volleyball', 14)}</span>
+        <span class="dtf-label">Vôlei</span>
+        <span class="dtf-val">${fmtMin(volleyballMin)}</span>
+      </div>` : ''}
+      <div class="dtf-item">
+        <span class="dtf-icon" style="color:var(--purple)">${icon('dumbbell', 14)}</span>
+        <span class="dtf-label">Treino</span>
+        <span class="dtf-val">${fmtMin(workoutMin)}</span>
+      </div>
+      <div class="dtf-item dtf-total">
+        <span class="dtf-icon">${icon('timer', 14)}</span>
+        <span class="dtf-label">Total</span>
+        <span class="dtf-val">${fmtMin(totalActivityMin)}</span>
+      </div>
     </div>
-  `).join('');
+  `;
 
+  // Studies block
+  const studiesHtml = wf !== 'workout' ? `
+    <div class="subject-block">
+      <div class="subject-block-title">${icon('book', 14)} Estudos do Dia</div>
+      ${routine.studies.map(s => `
+        <div class="subject-item">
+          <div class="subject-icon-sm" style="color:${s.color}">${icon(s.iconKey, 16)}</div>
+          <span class="subject-name">${s.subject}</span>
+          <span class="subject-time">${s.duration}</span>
+          <button class="study-start-mini" onclick="openStudyPanel(${JSON.stringify(s).replace(/"/g,'&quot;')})">${icon('play', 12)}</button>
+        </div>
+      `).join('')}
+    </div>
+  ` : '';
+
+  // Workout block
   const focusChips = routine.workout.focus.split(', ').map(f =>
     `<span class="focus-chip">${f}</span>`
   ).join('');
 
-  document.getElementById('week-day-detail').innerHTML = `
-    <div class="day-detail-header">
-      <div class="day-detail-title">${routine.dayName}${isToday ? ' <span style="color:var(--cyan);font-size:14px;">· Hoje</span>' : ''}</div>
-    </div>
-
-    <!-- Day overview image -->
-    <div class="day-img-wrap">
-      <img src="${routine.dayImage}" alt="${routine.dayName}" class="day-overview-img" />
-      <div class="day-img-overlay">
-        <span>${routine.workout.label}</span>
+  const workoutHtml = wf !== 'study' ? `
+    ${volleyballMin > 0 ? `
+    <div class="volleyball-card">
+      <div class="vc-icon">${icon('volleyball', 28)}</div>
+      <div class="vc-info">
+        <div class="vc-title">Vôlei</div>
+        <div class="vc-sub">2 horas de jogo</div>
       </div>
-    </div>
-
-    <div class="subject-block">
-      <div class="subject-block-title">${icon('book', 14)} Estudos do Dia</div>
-      ${studiesHtml}
-    </div>
-
+      <div class="vc-badge">2h</div>
+    </div>` : ''}
     <div class="workout-detail-card">
       <div class="workout-detail-title">${icon('dumbbell', 14)} Treino do Dia</div>
       <div class="workout-sheet-info">
@@ -332,14 +400,30 @@ function renderWeekDayDetail(dayNum) {
         ${icon('box', 12)} ${routine.workout.module}
       </div>
       <div class="focus-chips">${focusChips}</div>
+      <div class="workout-est-time">
+        ${icon('timer', 12)} Tempo estimado: <strong>${fmtMin(workoutMin)}</strong>
+      </div>
       ${workP.total > 0 ? `
-        <div style="margin-top:12px;font-size:12px;color:var(--text-muted);">
+        <div style="margin-top:8px;font-size:12px;color:var(--text-muted);">
           Progresso: <span style="color:var(--cyan);font-weight:700;">${workP.done}/${workP.total}</span> exercícios
         </div>` : ''}
       <button class="start-day-btn" onclick="startDayWorkout(${dayNum})">
         ${icon('play', 14)} Ir para o Treino
       </button>
     </div>
+  ` : '';
+
+  document.getElementById('week-day-detail').innerHTML = `
+    <div class="day-detail-header">
+      <div class="day-detail-title">${routine.dayName}${isToday ? ' <span style="color:var(--cyan);font-size:14px;">· Hoje</span>' : ''}</div>
+    </div>
+    <div class="day-img-wrap">
+      <img src="${routine.dayImage}" alt="${routine.dayName}" class="day-overview-img" />
+      <div class="day-img-overlay"><span>${routine.workout.label}</span></div>
+    </div>
+    ${forecastHtml}
+    ${studiesHtml}
+    ${workoutHtml}
   `;
 }
 
@@ -617,7 +701,493 @@ function init() {
     if (e.target === this) closeModal();
   });
 
+
   document.getElementById('library-search').addEventListener('input', e => onSearchInput(e.target.value));
+
+  // Close study panel on overlay click
+  document.getElementById('study-panel')?.addEventListener('click', function(e) {
+    if (e.target === this) closeStudyPanel();
+  });
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+// =============================================
+//   STUDY VIEW
+// =============================================
+
+function renderStudyView() {
+  const todayNum = new Date().getDay();
+  const routine = WEEKLY_ROUTINE[todayNum];
+  const key = dayKey(todayNum);
+  const studyP = countStudyProgress(todayNum);
+
+  // Today overview card
+  const todayHtml = `
+    <div class="study-ov-header">
+      <div>
+        <div class="study-ov-title">Estudos de Hoje</div>
+        <div class="study-ov-sub">${routine.dayName}</div>
+      </div>
+      <div class="study-ov-progress">
+        <span style="color:var(--cyan);font-weight:800;font-size:20px;">${studyP.done}</span>
+        <span style="color:var(--text-muted);font-size:14px;">/${studyP.total}</span>
+      </div>
+    </div>
+    <div class="study-ov-subjects">
+      ${routine.studies.map((s, i) => {
+        const done = state.studyProgress[key]?.[i];
+        const logged = state.studyTimeLog?.[s.subject] || 0;
+        const goal = s.goalHours || 0;
+        const pct = goal > 0 ? Math.min(100, (logged / 60) / goal * 100) : 0;
+        return `
+          <div class="study-ov-item ${done ? 'done' : ''}" onclick="openStudyPanel(${JSON.stringify(s).replace(/"/g,'&quot;')})">
+            <div class="study-ov-icon" style="background:${s.color}22;color:${s.color}">${icon(s.iconKey, 18)}</div>
+            <div class="study-ov-info">
+              <div class="study-ov-name">${s.subject}</div>
+              <div class="study-ov-meta">${s.duration} · Meta: ${goal}h · ${Math.round(logged/60*10)/10}h registrado</div>
+              <div class="study-ov-bar-wrap"><div class="study-ov-bar-fill" style="width:${pct}%;background:${s.color}"></div></div>
+            </div>
+            <div class="study-ov-play">${icon('play', 14)}</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+  document.getElementById('study-overview-today').innerHTML = todayHtml;
+
+  // All subjects (deduplicated across week)
+  const allSubjects = {};
+  Object.values(WEEKLY_ROUTINE).forEach(r => {
+    r.studies.forEach(s => { allSubjects[s.subject] = s; });
+  });
+
+  document.getElementById('study-subject-grid').innerHTML = Object.values(allSubjects).map(s => {
+    const logged = state.studyTimeLog?.[s.subject] || 0;
+    const goal = s.goalHours || 0;
+    const remaining = Math.max(0, goal * 60 - logged);
+    const pct = goal > 0 ? Math.min(100, logged / (goal * 60) * 100) : 0;
+    return `
+      <div class="study-card-big" onclick="openStudyPanel(${JSON.stringify(s).replace(/"/g,'&quot;')})">
+        <div class="scb-top">
+          <div class="scb-icon" style="background:${s.color}22;color:${s.color}">${icon(s.iconKey, 22)}</div>
+          <div class="scb-info">
+            <div class="scb-name">${s.subject}</div>
+            <div class="scb-meta">${Math.round(logged/60*10)/10}h / ${goal}h estudado</div>
+          </div>
+          <div class="scb-play">${icon('play', 16)}</div>
+        </div>
+        <div class="scb-bar-wrap"><div class="scb-bar-fill" style="width:${pct}%;background:${s.color}"></div></div>
+        <div class="scb-remaining">${icon('hourglass', 11)} Faltam ${Math.floor(remaining/60)}h${remaining%60 > 0 ? remaining%60+'min' : ''} para a meta</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// =============================================
+//   STUDY PANEL
+// =============================================
+
+function openStudyPanel(subjectObj) {
+  // subjectObj may come from HTML as &quot; encoded → decode
+  let s = subjectObj;
+  if (typeof s === 'string') {
+    try { s = JSON.parse(s.replace(/&quot;/g, '"')); } catch(e) { return; }
+  }
+  state.studySubject = s;
+  resetStudyTimer();
+
+  document.getElementById('sp-title').textContent = s.subject;
+  document.getElementById('sp-sub').textContent = `Sessão hoje: ${s.duration}`;
+
+  // Populate subjects list
+  const todayNum = new Date().getDay();
+  const routine = WEEKLY_ROUTINE[todayNum];
+  document.getElementById('sp-subject-list').innerHTML = routine.studies.map(sub => `
+    <div class="sp-subject-item ${sub.subject === s.subject ? 'active' : ''}"
+         onclick="switchStudySubject(${JSON.stringify(sub).replace(/"/g,'&quot;')})"
+         style="border-color:${sub.subject === s.subject ? sub.color : 'var(--border)'}">
+      <span style="color:${sub.color}">${icon(sub.iconKey, 14)}</span>
+      <span>${sub.subject}</span>
+      <span style="color:var(--text-muted);font-size:11px;">${sub.duration}</span>
+    </div>
+  `).join('');
+
+  renderGoalProgress(s);
+  document.getElementById('study-panel').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function switchStudySubject(subjectObj) {
+  let s = subjectObj;
+  if (typeof s === 'string') {
+    try { s = JSON.parse(s.replace(/&quot;/g, '"')); } catch(e) { return; }
+  }
+  resetStudyTimer();
+  state.studySubject = s;
+  document.getElementById('sp-title').textContent = s.subject;
+  document.getElementById('sp-sub').textContent = `Sessão hoje: ${s.duration}`;
+  document.querySelectorAll('.sp-subject-item').forEach((el, i) => {
+    const match = el.querySelector('span:nth-child(2)')?.textContent === s.subject;
+    el.classList.toggle('active', match);
+    if (match) el.style.borderColor = s.color;
+    else el.style.borderColor = 'var(--border)';
+  });
+  renderGoalProgress(s);
+}
+
+function closeStudyPanel() {
+  // Save any continuous time
+  if (state.studyTimerRunning) stopStudyTimer();
+  document.getElementById('study-panel').classList.remove('show');
+  document.body.style.overflow = '';
+  if (state.currentView === 'study') renderStudyView();
+}
+
+function setStudyMode(mode) {
+  state.studyMode = mode;
+  resetStudyTimer();
+  document.getElementById('sp-mode-continuous').classList.toggle('active', mode === 'continuous');
+  document.getElementById('sp-mode-pomodoro').classList.toggle('active', mode === 'pomodoro');
+  const cfg = document.getElementById('sp-pomodoro-config');
+  if (cfg) cfg.style.display = mode === 'pomodoro' ? 'block' : 'none';
+}
+
+function adjustPomodoro(field, delta) {
+  if (field === 'focus') {
+    state.pomodoroFocusMin = Math.max(5, state.pomodoroFocusMin + delta);
+    document.getElementById('sp-focus-val').textContent = state.pomodoroFocusMin;
+  } else {
+    state.pomodoroBreakMin = Math.max(1, state.pomodoroBreakMin + delta);
+    document.getElementById('sp-break-val').textContent = state.pomodoroBreakMin;
+  }
+  if (!state.studyTimerRunning) resetStudyTimer();
+}
+
+function toggleStudyTimer() {
+  if (state.studyTimerRunning) {
+    stopStudyTimer();
+  } else {
+    startStudyTimer();
+  }
+}
+
+function startStudyTimer() {
+  state.studyTimerRunning = true;
+  document.getElementById('sp-btn-start').textContent = 'Pausar';
+  document.getElementById('sp-btn-start').classList.add('running');
+
+  // Set initial seconds if 0
+  if (state.studyTimerSeconds <= 0) {
+    if (state.studyMode === 'pomodoro') {
+      state.pomodoroPhase = 'focus';
+      state.studyTimerSeconds = state.pomodoroFocusMin * 60;
+    } else {
+      state.studyTimerSeconds = 0; // count up in continuous
+    }
+  }
+
+  state.studyTimer = setInterval(() => {
+    if (state.studyMode === 'continuous') {
+      state.studyTimerSeconds++;
+      state.studyTotalSeconds++;
+      updateStudyTimerDisplay();
+    } else {
+      // Pomodoro: count down
+      if (state.studyTimerSeconds > 0) {
+        state.studyTimerSeconds--;
+        if (state.pomodoroPhase === 'focus') state.studyTotalSeconds++;
+        updateStudyTimerDisplay();
+      } else {
+        // Phase complete
+        clearInterval(state.studyTimer);
+        state.studyTimerRunning = false;
+        if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
+        if (state.pomodoroPhase === 'focus') {
+          state.pomodoroCount++;
+          logStudyTime();
+          state.pomodoroPhase = 'break';
+          state.studyTimerSeconds = state.pomodoroBreakMin * 60;
+          document.getElementById('sp-phase-label').textContent = 'Pausa ☕';
+          document.getElementById('sp-btn-start').textContent = 'Iniciar Pausa';
+          document.getElementById('sp-btn-start').classList.remove('running');
+          renderGoalProgress(state.studySubject);
+        } else {
+          state.pomodoroPhase = 'focus';
+          state.studyTimerSeconds = state.pomodoroFocusMin * 60;
+          document.getElementById('sp-phase-label').textContent = 'Foco 🎯';
+          document.getElementById('sp-btn-start').textContent = 'Iniciar Foco';
+          document.getElementById('sp-btn-start').classList.remove('running');
+        }
+        updateStudyTimerDisplay();
+      }
+    }
+  }, 1000);
+}
+
+function stopStudyTimer() {
+  clearInterval(state.studyTimer);
+  state.studyTimerRunning = false;
+  document.getElementById('sp-btn-start').textContent = 'Continuar';
+  document.getElementById('sp-btn-start').classList.remove('running');
+  if (state.studyMode === 'continuous') logStudyTime();
+}
+
+function resetStudyTimer() {
+  stopStudyTimer();
+  state.studyTimerSeconds = state.studyMode === 'pomodoro' ? state.pomodoroFocusMin * 60 : 0;
+  state.studyTotalSeconds = 0;
+  state.pomodoroPhase = 'focus';
+  state.pomodoroCount = 0;
+  document.getElementById('sp-btn-start').textContent = 'Iniciar';
+  document.getElementById('sp-btn-start').classList.remove('running');
+  const pl = document.getElementById('sp-phase-label');
+  if (pl) pl.textContent = state.studyMode === 'pomodoro' ? 'Foco 🎯' : 'Pronto';
+  updateStudyTimerDisplay();
+}
+
+function logStudyTime() {
+  if (!state.studySubject || state.studyTotalSeconds < 10) return;
+  const subj = state.studySubject.subject;
+  if (!state.studyTimeLog) state.studyTimeLog = {};
+  state.studyTimeLog[subj] = (state.studyTimeLog[subj] || 0) + Math.floor(state.studyTotalSeconds / 60);
+  state.studyTotalSeconds = 0;
+  saveState();
+  renderGoalProgress(state.studySubject);
+}
+
+function updateStudyTimerDisplay() {
+  const s = state.studyTimerSeconds;
+  const m = Math.floor(s / 60).toString().padStart(2, '0');
+  const sec = (s % 60).toString().padStart(2, '0');
+  const display = `${m}:${sec}`;
+  const inner = document.getElementById('sp-timer-inner');
+  if (inner) inner.textContent = display;
+
+  // Circular progress
+  const fill = document.getElementById('sp-circle-fill');
+  if (fill) {
+    const totalSec = state.studyMode === 'pomodoro'
+      ? (state.pomodoroPhase === 'focus' ? state.pomodoroFocusMin : state.pomodoroBreakMin) * 60
+      : Math.max(state.studyTimerSeconds, 1);
+    const pct = state.studyMode === 'pomodoro'
+      ? 1 - (s / totalSec)
+      : 1; // continuous: full ring
+    const circ = 2 * Math.PI * 50;
+    fill.setAttribute('stroke-dashoffset', circ * (1 - pct));
+    fill.setAttribute('stroke', state.pomodoroPhase === 'break' ? '#22c55e' : 'var(--cyan)');
+  }
+
+  // Phase label for pomodoro
+  const pl = document.getElementById('sp-phase-label');
+  if (pl && state.studyMode === 'pomodoro') {
+    pl.textContent = state.pomodoroPhase === 'focus'
+      ? `Foco 🎯 · #${state.pomodoroCount + 1}`
+      : 'Pausa ☕';
+  }
+}
+
+function renderGoalProgress(s) {
+  if (!s) return;
+  const logged = state.studyTimeLog?.[s.subject] || 0;
+  const goal = s.goalHours || 0;
+  const sessionMin = Math.floor(state.studyTotalSeconds / 60);
+  const total = logged + sessionMin;
+  const remaining = Math.max(0, goal * 60 - total);
+  const pct = goal > 0 ? Math.min(100, total / (goal * 60) * 100) : 0;
+
+  const goalInfo = document.getElementById('sp-goal-info');
+  const goalBar = document.getElementById('sp-goal-bar-fill');
+  const goalRem = document.getElementById('sp-goal-remaining');
+
+  if (goalInfo) goalInfo.innerHTML = `
+    <span style="color:var(--cyan);font-weight:700;">${Math.round(total / 60 * 10) / 10}h</span>
+    <span style="color:var(--text-muted)"> de </span>
+    <span style="font-weight:700;">${goal}h</span>
+    <span style="color:var(--text-muted)"> estudado</span>
+  `;
+  if (goalBar) goalBar.style.width = `${pct}%`;
+  if (goalRem) {
+    if (remaining <= 0) {
+      goalRem.innerHTML = `${icon('trophy', 14)} <span style="color:var(--green)">Meta atingida! 🎉</span>`;
+    } else {
+      const remH = Math.floor(remaining / 60);
+      const remM = remaining % 60;
+      goalRem.innerHTML = `${icon('hourglass', 12)} Faltam <strong>${remH > 0 ? remH + 'h' : ''}${remM > 0 ? remM + 'min' : ''}</strong> para completar a meta`;
+    }
+  }
+}
+
+// =============================================
+//   HEALTH TRACKING (Água, Frutas, Remédios)
+// =============================================
+
+const HEALTH_MEDICINES = [
+  { key: 'omega3', label: 'Ômega-3', icon: 'pill' },
+  { key: 'vit_d', label: 'Vitamina D', icon: 'pill' },
+  { key: 'vit_c', label: 'Vitamina C', icon: 'pill' },
+  { key: 'magnesio', label: 'Magnésio', icon: 'pill' },
+  { key: 'creatina', label: 'Creatina', icon: 'pill' },
+];
+
+const FRUITS_LIST = [
+  { key: 'banana', label: 'Banana', emoji: '🍌' },
+  { key: 'maca', label: 'Maçã', emoji: '🍎' },
+  { key: 'laranja', label: 'Laranja', emoji: '🍊' },
+  { key: 'uva', label: 'Uva', emoji: '🍇' },
+  { key: 'morango', label: 'Morango', emoji: '🍓' },
+  { key: 'abacate', label: 'Abacate', emoji: '🥑' },
+  { key: 'mamao', label: 'Mamão', emoji: '🍈' },
+  { key: 'melancia', label: 'Melancia', emoji: '🍉' },
+];
+
+function getTodayHealthKey() {
+  const d = new Date();
+  return `health_${d.getFullYear()}_${d.getMonth()}_${d.getDate()}`;
+}
+
+function loadTodayHealth() {
+  try {
+    const raw = localStorage.getItem(getTodayHealthKey());
+    return raw ? JSON.parse(raw) : { water400: 0, water500: 0, fruits: {}, meds: {} };
+  } catch(e) {
+    return { water400: 0, water500: 0, fruits: {}, meds: {} };
+  }
+}
+
+function saveTodayHealth(data) {
+  try { localStorage.setItem(getTodayHealthKey(), JSON.stringify(data)); } catch(e) {}
+}
+
+function renderHealth() {
+  const h = loadTodayHealth();
+  const totalMl = h.water400 * 400 + h.water500 * 500;
+  const waterGoalMl = 2400;
+  const waterPct = Math.min(100, totalMl / waterGoalMl * 100);
+
+  const fruitCount = Object.values(h.fruits).reduce((a, b) => a + b, 0);
+  const medsDone = Object.values(h.meds).filter(Boolean).length;
+
+  document.getElementById('home-health').innerHTML = `
+    <!-- Water -->
+    <div class="health-card">
+      <div class="health-card-title">${icon('droplets', 16)} Hidratação</div>
+      <div class="water-total">${totalMl}ml <span>/ ${waterGoalMl}ml</span></div>
+      <div class="water-bar-wrap"><div class="water-bar-fill" style="width:${waterPct}%;"></div></div>
+      <div class="water-btns">
+        <button class="water-btn" onclick="addWater(400)">
+          ${icon('droplets', 14)} +400ml
+          <span class="water-count">${h.water400}×</span>
+        </button>
+        <button class="water-btn water-btn-lg" onclick="addWater(500)">
+          ${icon('droplets', 16)} +500ml
+          <span class="water-count">${h.water500}×</span>
+        </button>
+        ${totalMl > 0 ? `<button class="water-btn water-btn-undo" onclick="undoWater()" title="Desfazer último">${icon('refresh', 13)}</button>` : ''}
+      </div>
+    </div>
+
+    <!-- Fruits -->
+    <div class="health-card">
+      <div class="health-card-title">${icon('leaf', 16)} Frutas <span class="health-count-badge">${fruitCount}</span></div>
+      <div class="fruits-grid">
+        ${FRUITS_LIST.map(f => {
+          const count = h.fruits[f.key] || 0;
+          return `
+            <button class="fruit-btn ${count > 0 ? 'active' : ''}" onclick="addFruit('${f.key}')">
+              <span class="fruit-emoji">${f.emoji}</span>
+              <span class="fruit-label">${f.label}</span>
+              ${count > 0 ? `<span class="fruit-badge">${count}</span>` : ''}
+            </button>
+          `;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- Medicines / Vitamins -->
+    <div class="health-card">
+      <div class="health-card-title">${icon('pill', 16)} Remédios & Vitaminas <span class="health-count-badge">${medsDone}/${HEALTH_MEDICINES.length}</span></div>
+      <div class="meds-list">
+        ${HEALTH_MEDICINES.map(m => {
+          const done = h.meds[m.key] || false;
+          return `
+            <div class="med-item ${done ? 'done' : ''}" onclick="toggleMed('${m.key}')">
+              <div class="med-check ${done ? 'checked' : ''}">${done ? icon('check', 12) : ''}</div>
+              <span class="med-label">${m.label}</span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- Export -->
+    <button class="export-btn" onclick="exportData()">
+      ${icon('download', 16)} Exportar Dados (JSON)
+    </button>
+  `;
+}
+
+function addWater(ml) {
+  const h = loadTodayHealth();
+  if (ml === 400) h.water400++;
+  else h.water500++;
+  saveTodayHealth(h);
+  renderHealth();
+}
+
+function undoWater() {
+  const h = loadTodayHealth();
+  if (h.water500 > 0) h.water500--;
+  else if (h.water400 > 0) h.water400--;
+  saveTodayHealth(h);
+  renderHealth();
+}
+
+function addFruit(key) {
+  const h = loadTodayHealth();
+  h.fruits[key] = (h.fruits[key] || 0) + 1;
+  saveTodayHealth(h);
+  renderHealth();
+}
+
+function toggleMed(key) {
+  const h = loadTodayHealth();
+  h.meds[key] = !h.meds[key];
+  saveTodayHealth(h);
+  renderHealth();
+}
+
+// =============================================
+//   EXPORT DATA
+// =============================================
+
+function exportData() {
+  const exportObj = {
+    exportedAt: new Date().toISOString(),
+    version: '1.0',
+    studyProgress: state.studyProgress,
+    workoutProgress: state.workoutProgress,
+    studyTimeLog: state.studyTimeLog,
+    healthToday: loadTodayHealth(),
+    // collect all health days from localStorage
+    healthHistory: (() => {
+      const hist = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('health_')) {
+          try { hist[k] = JSON.parse(localStorage.getItem(k)); } catch(e) {}
+        }
+      }
+      return hist;
+    })(),
+  };
+
+  const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `rotina_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
