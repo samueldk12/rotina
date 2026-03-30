@@ -1825,8 +1825,9 @@ html, body {
 }
 .fruit-btn:hover { background: rgba(255,255,255,0.06); transform: scale(1.05); }
 .fruit-btn:active { transform: scale(0.95); }
-.fruit-btn.active { border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.08); }
+.fruit-btn.active { border-color: color-mix(in srgb, var(--fruit-color, var(--green)) 50%, transparent); background: color-mix(in srgb, var(--fruit-color, var(--green)) 10%, transparent); }
 
+.fruit-icon { display: flex; align-items: center; justify-content: center; transition: color 0.2s ease; }
 .fruit-emoji { font-size: 20px; line-height: 1; }
 .fruit-label { font-size: 10px; color: var(--text-muted); font-weight: 600; }
 .fruit-badge {

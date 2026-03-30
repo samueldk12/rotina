@@ -71,6 +71,17 @@ const ICONS = {
   pill: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="8" width="20" height="8" rx="4"/><line x1="12" y1="8" x2="12" y2="16"/></svg>`,
   droplets: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`,
   leaf: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>`,
+
+  // ---- FRUIT ICONS ----
+  fruitBanana:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20c3-8 11-15 17-14"/><path d="M4 20c2-5 8-9 12-9"/><path d="M21 6c0 0-1-2-3-1"/></svg>`,
+  fruitGoiaba:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 5V2"/><path d="M9.5 3.5L12 5l2.5-1.5"/><circle cx="10" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="14" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="15" r="1" fill="currentColor" stroke="none"/></svg>`,
+  fruitMaca:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3c-4.5 0-7 4-7 9s2.5 9 7 9 7-4 7-9-2.5-9-7-9z"/><path d="M12 3c0-2 2-3 2-3"/><path d="M12 3c-1 0-3-1-3-1"/></svg>`,
+  fruitMelancia: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 21L21 3"/><path d="M3 21a13 13 0 0 0 18-18"/><line x1="8" y1="16" x2="8.01" y2="16" stroke-width="3"/><line x1="12" y1="18" x2="12.01" y2="18" stroke-width="3"/><line x1="13" y1="13" x2="13.01" y2="13" stroke-width="3"/></svg>`,
+  fruitLaranja:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 5V2"/><path d="M12 5c2-2 4-2 4-2"/><line x1="4" y1="13" x2="20" y2="13"/><line x1="12" y1="5" x2="12" y2="21"/><line x1="5.5" y1="7.5" x2="18.5" y2="18.5"/><line x1="18.5" y1="7.5" x2="5.5" y2="18.5"/></svg>`,
+  fruitAbacate:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2c-4 0-7 5-7 11s3 9 7 9 7-3 7-9-3-11-7-11z"/><circle cx="12" cy="15" r="3"/><path d="M12 2v3"/></svg>`,
+  fruitUva:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="9" r="2.5"/><circle cx="15" cy="9" r="2.5"/><circle cx="6" cy="14" r="2.5"/><circle cx="12" cy="14" r="2.5"/><circle cx="18" cy="14" r="2.5"/><circle cx="12" cy="19" r="2.5"/><path d="M12 6.5V4"/><path d="M10 4h4"/></svg>`,
+  fruitMamao:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3c-5 0-8 5-8 11s3 8 8 8 8-2 8-8-3-11-8-11z"/><path d="M12 3V1"/><circle cx="10" cy="14" r="1" fill="currentColor" stroke="none"/><circle cx="14" cy="14" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg>`,
+
 };
 
 // ---- SUBJECT ICON MAP (key → ICONS.key) ----

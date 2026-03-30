@@ -328,32 +328,38 @@ function renderWeekDayDetail(dayNum) {
     return h > 0 ? (r > 0 ? `${h}h${r}min` : `${h}h`) : `${r}min`;
   }
 
-  // Time forecast badge
-  const forecastHtml = `
-    <div class="day-time-forecast">
+  // Time forecast — filter-aware
+  const showStudy = wf !== 'workout';
+  const showWorkout = wf !== 'study';
+  const filteredTotal = (showStudy ? studyTotalMin : 0) + (showWorkout ? workoutMin + volleyballMin : 0);
+
+  const forecastItems = [
+    showStudy ? `
       <div class="dtf-item">
         <span class="dtf-icon" style="color:var(--cyan)">${icon('book', 14)}</span>
         <span class="dtf-label">Estudos</span>
         <span class="dtf-val">${fmtMin(studyTotalMin)}</span>
-      </div>
-      ${volleyballMin > 0 ? `
+      </div>` : '',
+    showWorkout && volleyballMin > 0 ? `
       <div class="dtf-item">
         <span class="dtf-icon" style="color:var(--blue)">${icon('volleyball', 14)}</span>
         <span class="dtf-label">Vôlei</span>
         <span class="dtf-val">${fmtMin(volleyballMin)}</span>
-      </div>` : ''}
+      </div>` : '',
+    showWorkout ? `
       <div class="dtf-item">
         <span class="dtf-icon" style="color:var(--purple)">${icon('dumbbell', 14)}</span>
         <span class="dtf-label">Treino</span>
         <span class="dtf-val">${fmtMin(workoutMin)}</span>
-      </div>
-      <div class="dtf-item dtf-total">
+      </div>` : '',
+    `<div class="dtf-item dtf-total">
         <span class="dtf-icon">${icon('timer', 14)}</span>
         <span class="dtf-label">Total</span>
-        <span class="dtf-val">${fmtMin(totalActivityMin)}</span>
-      </div>
-    </div>
-  `;
+        <span class="dtf-val">${fmtMin(filteredTotal)}</span>
+      </div>`,
+  ].filter(Boolean).join('');
+
+  const forecastHtml = `<div class="day-time-forecast">${forecastItems}</div>`;
 
   // Studies block
   const studiesHtml = wf !== 'workout' ? `
@@ -992,16 +998,24 @@ function renderGoalProgress(s) {
   const logged = state.studyTimeLog?.[s.subject] || 0;
   const goal = s.goalHours || 0;
   const sessionMin = Math.floor(state.studyTotalSeconds / 60);
-  const total = logged + sessionMin;
-  const remaining = Math.max(0, goal * 60 - total);
+  const total = logged + sessionMin;          // in minutes
+  const remaining = Math.max(0, goal * 60 - total);  // in minutes
   const pct = goal > 0 ? Math.min(100, total / (goal * 60) * 100) : 0;
+
+  function fmtTime(min) {
+    if (min <= 0) return '0min';
+    const h = Math.floor(min / 60), m = min % 60;
+    if (h === 0) return `${m}min`;
+    if (m === 0) return `${h}h`;
+    return `${h}h${m}min`;
+  }
 
   const goalInfo = document.getElementById('sp-goal-info');
   const goalBar = document.getElementById('sp-goal-bar-fill');
   const goalRem = document.getElementById('sp-goal-remaining');
 
   if (goalInfo) goalInfo.innerHTML = `
-    <span style="color:var(--cyan);font-weight:700;">${Math.round(total / 60 * 10) / 10}h</span>
+    <span style="color:var(--cyan);font-weight:700;">${fmtTime(total)}</span>
     <span style="color:var(--text-muted)"> de </span>
     <span style="font-weight:700;">${goal}h</span>
     <span style="color:var(--text-muted)"> estudado</span>
@@ -1011,9 +1025,7 @@ function renderGoalProgress(s) {
     if (remaining <= 0) {
       goalRem.innerHTML = `${icon('trophy', 14)} <span style="color:var(--green)">Meta atingida! 🎉</span>`;
     } else {
-      const remH = Math.floor(remaining / 60);
-      const remM = remaining % 60;
-      goalRem.innerHTML = `${icon('hourglass', 12)} Faltam <strong>${remH > 0 ? remH + 'h' : ''}${remM > 0 ? remM + 'min' : ''}</strong> para completar a meta`;
+      goalRem.innerHTML = `${icon('hourglass', 12)} Faltam <strong>${fmtTime(remaining)}</strong> para completar a meta`;
     }
   }
 }
@@ -1022,23 +1034,25 @@ function renderGoalProgress(s) {
 //   HEALTH TRACKING (Água, Frutas, Remédios)
 // =============================================
 
+// B12 only on Sunday (0) and Wednesday (3)
 const HEALTH_MEDICINES = [
-  { key: 'omega3', label: 'Ômega-3', icon: 'pill' },
-  { key: 'vit_d', label: 'Vitamina D', icon: 'pill' },
-  { key: 'vit_c', label: 'Vitamina C', icon: 'pill' },
-  { key: 'magnesio', label: 'Magnésio', icon: 'pill' },
-  { key: 'creatina', label: 'Creatina', icon: 'pill' },
+  { key: 'vellana',   label: 'Vellana',      alwaysShow: true },
+  { key: 'creatina',  label: 'Creatina',     alwaysShow: true },
+  { key: 'vitaminico',label: 'Vitamínico',   alwaysShow: true },
+  { key: 'whey',      label: 'Whey Protein', alwaysShow: true },
+  { key: 'omega3',    label: 'Ômega-3',      alwaysShow: true },
+  { key: 'b12',       label: 'B12',          alwaysShow: false, days: [0, 3] },
 ];
 
 const FRUITS_LIST = [
-  { key: 'banana', label: 'Banana', emoji: '🍌' },
-  { key: 'maca', label: 'Maçã', emoji: '🍎' },
-  { key: 'laranja', label: 'Laranja', emoji: '🍊' },
-  { key: 'uva', label: 'Uva', emoji: '🍇' },
-  { key: 'morango', label: 'Morango', emoji: '🍓' },
-  { key: 'abacate', label: 'Abacate', emoji: '🥑' },
-  { key: 'mamao', label: 'Mamão', emoji: '🍈' },
-  { key: 'melancia', label: 'Melancia', emoji: '🍉' },
+  { key: 'banana',   label: 'Banana',   iconKey: 'fruitBanana',   color: '#f59e0b' },
+  { key: 'goiaba',   label: 'Goiaba',   iconKey: 'fruitGoiaba',   color: '#f97316' },
+  { key: 'maca',     label: 'Maçã',     iconKey: 'fruitMaca',     color: '#ef4444' },
+  { key: 'melancia', label: 'Melancia', iconKey: 'fruitMelancia', color: '#22c55e' },
+  { key: 'laranja',  label: 'Laranja',  iconKey: 'fruitLaranja',  color: '#fb923c' },
+  { key: 'abacate',  label: 'Abacate',  iconKey: 'fruitAbacate',  color: '#84cc16' },
+  { key: 'uva',      label: 'Uva',      iconKey: 'fruitUva',      color: '#a855f7' },
+  { key: 'mamao',    label: 'Mamão',    iconKey: 'fruitMamao',    color: '#f97316' },
 ];
 
 function getTodayHealthKey() {
@@ -1062,11 +1076,15 @@ function saveTodayHealth(data) {
 function renderHealth() {
   const h = loadTodayHealth();
   const totalMl = h.water400 * 400 + h.water500 * 500;
-  const waterGoalMl = 2400;
+  const waterGoalMl = 2000;
   const waterPct = Math.min(100, totalMl / waterGoalMl * 100);
+  const todayDay = new Date().getDay();
 
   const fruitCount = Object.values(h.fruits).reduce((a, b) => a + b, 0);
-  const medsDone = Object.values(h.meds).filter(Boolean).length;
+
+  // Filter medicines: always show alwaysShow, show day-specific ones only on their days
+  const todayMeds = HEALTH_MEDICINES.filter(m => m.alwaysShow || (m.days && m.days.includes(todayDay)));
+  const medsDone = todayMeds.filter(m => h.meds[m.key]).length;
 
   document.getElementById('home-health').innerHTML = `
     <!-- Water -->
@@ -1099,8 +1117,8 @@ function renderHealth() {
         ${FRUITS_LIST.map(f => {
           const count = h.fruits[f.key] || 0;
           return `
-            <button class="fruit-btn ${count > 0 ? 'active' : ''}" onclick="addFruit('${f.key}')">
-              <span class="fruit-emoji">${f.emoji}</span>
+            <button class="fruit-btn ${count > 0 ? 'active' : ''}" onclick="addFruit('${f.key}')" style="--fruit-color:${f.color}">
+              <span class="fruit-icon" style="color:${count > 0 ? f.color : 'var(--text-muted)'}">${icon(f.iconKey, 22)}</span>
               <span class="fruit-label">${f.label}</span>
               ${count > 0 ? `<span class="fruit-badge" onclick="event.stopPropagation(); removeFruit('${f.key}')" title="Remover 1">${count}</span>` : ''}
             </button>
@@ -1111,9 +1129,10 @@ function renderHealth() {
 
     <!-- Medicines / Vitamins -->
     <div class="health-card">
-      <div class="health-card-title">${icon('pill', 16)} Remédios & Vitaminas <span class="health-count-badge">${medsDone}/${HEALTH_MEDICINES.length}</span></div>
+      <div class="health-card-title">${icon('pill', 16)} Remédios & Vitaminas <span class="health-count-badge">${medsDone}/${todayMeds.length}</span></div>
+      ${todayDay === 0 || todayDay === 3 ? `<div style="font-size:11px;color:var(--cyan);margin-bottom:10px;">${icon('info',11)} B12 incluído hoje (Dom/Qua)</div>` : ''}
       <div class="meds-list">
-        ${HEALTH_MEDICINES.map(m => {
+        ${todayMeds.map(m => {
           const done = h.meds[m.key] || false;
           return `
             <div class="med-item ${done ? 'done' : ''}" onclick="toggleMed('${m.key}')">
