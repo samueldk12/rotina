@@ -1075,15 +1075,20 @@ function renderHealth() {
       <div class="water-total">${totalMl}ml <span>/ ${waterGoalMl}ml</span></div>
       <div class="water-bar-wrap"><div class="water-bar-fill" style="width:${waterPct}%;"></div></div>
       <div class="water-btns">
-        <button class="water-btn" onclick="addWater(400)">
-          ${icon('droplets', 14)} +400ml
-          <span class="water-count">${h.water400}×</span>
-        </button>
-        <button class="water-btn water-btn-lg" onclick="addWater(500)">
-          ${icon('droplets', 16)} +500ml
-          <span class="water-count">${h.water500}×</span>
-        </button>
-        ${totalMl > 0 ? `<button class="water-btn water-btn-undo" onclick="undoWater()" title="Desfazer último">${icon('refresh', 13)}</button>` : ''}
+        <div class="water-group">
+          <button class="water-btn" onclick="addWater(400)">
+            ${icon('droplets', 14)} +400ml
+            <span class="water-count">${h.water400}×</span>
+          </button>
+          ${h.water400 > 0 ? `<button class="water-btn water-btn-minus" onclick="removeWater(400)" title="Remover 1 copo 400ml">−400ml</button>` : ''}
+        </div>
+        <div class="water-group">
+          <button class="water-btn water-btn-lg" onclick="addWater(500)">
+            ${icon('droplets', 16)} +500ml
+            <span class="water-count">${h.water500}×</span>
+          </button>
+          ${h.water500 > 0 ? `<button class="water-btn water-btn-minus water-btn-minus-lg" onclick="removeWater(500)" title="Remover 1 garrafa 500ml">−500ml</button>` : ''}
+        </div>
       </div>
     </div>
 
@@ -1097,7 +1102,7 @@ function renderHealth() {
             <button class="fruit-btn ${count > 0 ? 'active' : ''}" onclick="addFruit('${f.key}')">
               <span class="fruit-emoji">${f.emoji}</span>
               <span class="fruit-label">${f.label}</span>
-              ${count > 0 ? `<span class="fruit-badge">${count}</span>` : ''}
+              ${count > 0 ? `<span class="fruit-badge" onclick="event.stopPropagation(); removeFruit('${f.key}')" title="Remover 1">${count}</span>` : ''}
             </button>
           `;
         }).join('')}
@@ -1135,6 +1140,14 @@ function addWater(ml) {
   renderHealth();
 }
 
+function removeWater(ml) {
+  const h = loadTodayHealth();
+  if (ml === 400 && h.water400 > 0) h.water400--;
+  else if (ml === 500 && h.water500 > 0) h.water500--;
+  saveTodayHealth(h);
+  renderHealth();
+}
+
 function undoWater() {
   const h = loadTodayHealth();
   if (h.water500 > 0) h.water500--;
@@ -1146,6 +1159,14 @@ function undoWater() {
 function addFruit(key) {
   const h = loadTodayHealth();
   h.fruits[key] = (h.fruits[key] || 0) + 1;
+  saveTodayHealth(h);
+  renderHealth();
+}
+
+function removeFruit(key) {
+  const h = loadTodayHealth();
+  if (h.fruits[key] > 1) h.fruits[key]--;
+  else delete h.fruits[key];
   saveTodayHealth(h);
   renderHealth();
 }

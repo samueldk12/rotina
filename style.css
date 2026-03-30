@@ -1771,6 +1771,29 @@ html, body {
 .water-btn-lg { border-color: rgba(0,212,255,0.3); background: rgba(0,212,255,0.08); color: var(--cyan); }
 .water-btn-undo { background: none; border-color: var(--border); color: var(--text-muted); padding: 10px; }
 
+.water-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.water-btn-minus {
+  padding: 6px 10px;
+  border-radius: var(--radius-xs);
+  border: 1px solid rgba(239,68,68,0.3);
+  background: rgba(239,68,68,0.08);
+  color: #f87171;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+.water-btn-minus:hover { background: rgba(239,68,68,0.16); }
+.water-btn-minus-lg { border-color: rgba(239,68,68,0.3); }
+
 .water-count {
   font-size: 11px;
   background: rgba(255,255,255,0.1);
@@ -1817,6 +1840,12 @@ html, body {
   font-weight: 700;
   display: flex; align-items: center; justify-content: center;
   font-family: 'JetBrains Mono', monospace;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.fruit-badge:hover {
+  background: var(--red);
+  transform: scale(1.2);
 }
 
 /* Medicines */
