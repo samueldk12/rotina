@@ -1879,9 +1879,13 @@ html, body {
 .med-label { font-size: 13px; font-weight: 600; }
 .med-item.done .med-label { text-decoration: line-through; color: var(--text-muted); }
 
-/* Export button */
+/* Export / Import */
+.export-import-row {
+  display: flex;
+  gap: 8px;
+}
 .export-btn {
-  width: 100%;
+  flex: 1;
   padding: 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -1898,4 +1902,59 @@ html, body {
   transition: all 0.2s ease;
 }
 .export-btn:hover { background: rgba(0,212,255,0.08); border-color: var(--cyan); color: var(--cyan); }
+.import-btn:hover { background: rgba(124,58,237,0.08); border-color: var(--purple); color: var(--purple); }
+
+/* Study card goal chips */
+.scb-goal-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.scb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--bg-glass-light);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px 7px;
+}
+
+/* Goal stats 2x2 grid in study panel */
+.sp-goal-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.sp-goal-stat {
+  background: var(--bg-glass-light);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sp-goal-stat-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.sp-goal-stat-val {
+  font-size: 14px;
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-primary);
+}
+.sp-goal-stat-done { border-color: rgba(0,212,255,0.2); }
 

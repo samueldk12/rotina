@@ -719,6 +719,47 @@ function init() {
 document.addEventListener('DOMContentLoaded', init);
 
 // =============================================
+//   STUDY GOALS HELPER
+// =============================================
+
+/**
+ * Computes per-subject goals derived purely from WEEKLY_ROUTINE.
+ * Returns { dailyMin, weeklyMin, monthlyMin, weeklyH, monthlyH }
+ * goalHours in data.js is treated as the MONTHLY target (total hrs to study)
+ */
+function getSubjectGoals(subjectName) {
+  // Daily: sum of durationMin for today
+  const todayNum = new Date().getDay();
+  const todayStudies = WEEKLY_ROUTINE[todayNum]?.studies || [];
+  const todayEntry = todayStudies.find(s => s.subject === subjectName);
+  const dailyMin = todayEntry?.durationMin || 0;
+
+  // Weekly: sum of durationMin across all days
+  let weeklyMin = 0;
+  let firstEntry = null;
+  Object.values(WEEKLY_ROUTINE).forEach(r => {
+    const found = r.studies.find(s => s.subject === subjectName);
+    if (found) {
+      weeklyMin += found.durationMin || 0;
+      if (!firstEntry) firstEntry = found;
+    }
+  });
+
+  // Monthly: goalHours * 60 (this is the true monthly target set by user)
+  const monthlyMin = (firstEntry?.goalHours || 0) * 60;
+
+  return { dailyMin, weeklyMin, monthlyMin };
+}
+
+function fmtMin(m) {
+  if (!m || m <= 0) return '0min';
+  const h = Math.floor(m / 60), r = m % 60;
+  if (h === 0) return `${r}min`;
+  if (r === 0) return `${h}h`;
+  return `${h}h${r}min`;
+}
+
+// =============================================
 //   STUDY VIEW
 // =============================================
 
@@ -743,15 +784,15 @@ function renderStudyView() {
     <div class="study-ov-subjects">
       ${routine.studies.map((s, i) => {
         const done = state.studyProgress[key]?.[i];
-        const logged = state.studyTimeLog?.[s.subject] || 0;
-        const goal = s.goalHours || 0;
-        const pct = goal > 0 ? Math.min(100, (logged / 60) / goal * 100) : 0;
+        const logged = state.studyTimeLog?.[s.subject] || 0; // minutes
+        const goals = getSubjectGoals(s.subject);
+        const pct = goals.weeklyMin > 0 ? Math.min(100, logged / goals.weeklyMin * 100) : 0;
         return `
           <div class="study-ov-item ${done ? 'done' : ''}" onclick="openStudyPanel(${JSON.stringify(s).replace(/"/g,'&quot;')})">
             <div class="study-ov-icon" style="background:${s.color}22;color:${s.color}">${icon(s.iconKey, 18)}</div>
             <div class="study-ov-info">
               <div class="study-ov-name">${s.subject}</div>
-              <div class="study-ov-meta">${s.duration} · Meta: ${goal}h · ${Math.round(logged/60*10)/10}h registrado</div>
+              <div class="study-ov-meta">Hoje: ${fmtMin(goals.dailyMin)} &middot; Semana: ${fmtMin(goals.weeklyMin)} &middot; Registrado: ${fmtMin(logged)}</div>
               <div class="study-ov-bar-wrap"><div class="study-ov-bar-fill" style="width:${pct}%;background:${s.color}"></div></div>
             </div>
             <div class="study-ov-play">${icon('play', 14)}</div>
@@ -769,22 +810,27 @@ function renderStudyView() {
   });
 
   document.getElementById('study-subject-grid').innerHTML = Object.values(allSubjects).map(s => {
-    const logged = state.studyTimeLog?.[s.subject] || 0;
-    const goal = s.goalHours || 0;
-    const remaining = Math.max(0, goal * 60 - logged);
-    const pct = goal > 0 ? Math.min(100, logged / (goal * 60) * 100) : 0;
+    const logged = state.studyTimeLog?.[s.subject] || 0; // minutes
+    const goals = getSubjectGoals(s.subject);
+    const pct = goals.monthlyMin > 0 ? Math.min(100, logged / goals.monthlyMin * 100) : 0;
+    const remaining = Math.max(0, goals.monthlyMin - logged);
     return `
       <div class="study-card-big" onclick="openStudyPanel(${JSON.stringify(s).replace(/"/g,'&quot;')})">
         <div class="scb-top">
           <div class="scb-icon" style="background:${s.color}22;color:${s.color}">${icon(s.iconKey, 22)}</div>
           <div class="scb-info">
             <div class="scb-name">${s.subject}</div>
-            <div class="scb-meta">${Math.round(logged/60*10)/10}h / ${goal}h estudado</div>
+            <div class="scb-meta">${fmtMin(logged)} registrado de ${fmtMin(goals.monthlyMin)} (meta mensal)</div>
           </div>
           <div class="scb-play">${icon('play', 16)}</div>
         </div>
+        <div class="scb-goal-chips">
+          <span class="scb-chip">${icon('sun', 10)} Hoje: ${fmtMin(goals.dailyMin)}</span>
+          <span class="scb-chip">${icon('calendar', 10)} Semana: ${fmtMin(goals.weeklyMin)}</span>
+          <span class="scb-chip">${icon('timer', 10)} Mês: ${fmtMin(goals.monthlyMin)}</span>
+        </div>
         <div class="scb-bar-wrap"><div class="scb-bar-fill" style="width:${pct}%;background:${s.color}"></div></div>
-        <div class="scb-remaining">${icon('hourglass', 11)} Faltam ${Math.floor(remaining/60)}h${remaining%60 > 0 ? remaining%60+'min' : ''} para a meta</div>
+        <div class="scb-remaining">${icon('hourglass', 11)} Faltam ${fmtMin(remaining)} para a meta mensal</div>
       </div>
     `;
   }).join('');
@@ -995,12 +1041,16 @@ function updateStudyTimerDisplay() {
 
 function renderGoalProgress(s) {
   if (!s) return;
-  const logged = state.studyTimeLog?.[s.subject] || 0;
-  const goal = s.goalHours || 0;
+  const logged = state.studyTimeLog?.[s.subject] || 0; // in minutes
   const sessionMin = Math.floor(state.studyTotalSeconds / 60);
-  const total = logged + sessionMin;          // in minutes
-  const remaining = Math.max(0, goal * 60 - total);  // in minutes
-  const pct = goal > 0 ? Math.min(100, total / (goal * 60) * 100) : 0;
+  const total = logged + sessionMin; // total minutes logged + this session
+
+  const goals = getSubjectGoals(s.subject);
+
+  // Use weekly goal as the target for the panel progress bar
+  const target = goals.weeklyMin || 1;
+  const pct = Math.min(100, total / target * 100);
+  const remaining = Math.max(0, target - total);
 
   function fmtTime(min) {
     if (min <= 0) return '0min';
@@ -1015,17 +1065,31 @@ function renderGoalProgress(s) {
   const goalRem = document.getElementById('sp-goal-remaining');
 
   if (goalInfo) goalInfo.innerHTML = `
-    <span style="color:var(--cyan);font-weight:700;">${fmtTime(total)}</span>
-    <span style="color:var(--text-muted)"> de </span>
-    <span style="font-weight:700;">${goal}h</span>
-    <span style="color:var(--text-muted)"> estudado</span>
+    <div class="sp-goal-stats">
+      <div class="sp-goal-stat">
+        <span class="sp-goal-stat-label">${icon('sun', 11)} Hoje</span>
+        <span class="sp-goal-stat-val">${fmtTime(goals.dailyMin)}</span>
+      </div>
+      <div class="sp-goal-stat">
+        <span class="sp-goal-stat-label">${icon('calendar', 11)} Semana</span>
+        <span class="sp-goal-stat-val">${fmtTime(goals.weeklyMin)}</span>
+      </div>
+      <div class="sp-goal-stat">
+        <span class="sp-goal-stat-label">${icon('timer', 11)} Mês</span>
+        <span class="sp-goal-stat-val">${fmtTime(goals.monthlyMin)}</span>
+      </div>
+      <div class="sp-goal-stat sp-goal-stat-done">
+        <span class="sp-goal-stat-label">${icon('check', 11)} Registrado</span>
+        <span class="sp-goal-stat-val" style="color:var(--cyan)">${fmtTime(total)}</span>
+      </div>
+    </div>
   `;
   if (goalBar) goalBar.style.width = `${pct}%`;
   if (goalRem) {
     if (remaining <= 0) {
-      goalRem.innerHTML = `${icon('trophy', 14)} <span style="color:var(--green)">Meta atingida! 🎉</span>`;
+      goalRem.innerHTML = `${icon('trophy', 14)} <span style="color:var(--green)">Meta semanal atingida! 🎉</span>`;
     } else {
-      goalRem.innerHTML = `${icon('hourglass', 12)} Faltam <strong>${fmtTime(remaining)}</strong> para completar a meta`;
+      goalRem.innerHTML = `${icon('hourglass', 12)} Faltam <strong>${fmtTime(remaining)}</strong> para a meta semanal`;
     }
   }
 }
@@ -1144,10 +1208,15 @@ function renderHealth() {
       </div>
     </div>
 
-    <!-- Export -->
-    <button class="export-btn" onclick="exportData()">
-      ${icon('download', 16)} Exportar Dados (JSON)
-    </button>
+    <!-- Export / Import -->
+    <div class="export-import-row">
+      <button class="export-btn" onclick="exportData()">
+        ${icon('download', 16)} Exportar JSON
+      </button>
+      <button class="export-btn import-btn" onclick="triggerImport()">
+        ${icon('upload', 16)} Importar JSON
+      </button>
+    </div>
   `;
 }
 
@@ -1198,18 +1267,17 @@ function toggleMed(key) {
 }
 
 // =============================================
-//   EXPORT DATA
+//   EXPORT / IMPORT DATA
 // =============================================
 
 function exportData() {
   const exportObj = {
     exportedAt: new Date().toISOString(),
-    version: '1.0',
+    version: '2.0',
     studyProgress: state.studyProgress,
     workoutProgress: state.workoutProgress,
     studyTimeLog: state.studyTimeLog,
     healthToday: loadTodayHealth(),
-    // collect all health days from localStorage
     healthHistory: (() => {
       const hist = {};
       for (let i = 0; i < localStorage.length; i++) {
@@ -1231,3 +1299,89 @@ function exportData() {
   URL.revokeObjectURL(url);
 }
 
+function triggerImport() {
+  let input = document.getElementById('_import-file-input');
+  if (!input) {
+    input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.id = '_import-file-input';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('change', e => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          importData(data);
+        } catch(err) {
+          showToast('Arquivo inválido — JSON malformado', 'error');
+        }
+        input.value = ''; // reset so same file can be imported again
+      };
+      reader.readAsText(file);
+    });
+  }
+  input.click();
+}
+
+function importData(data) {
+  let imported = 0;
+
+  if (data.studyProgress) {
+    state.studyProgress = data.studyProgress;
+    localStorage.setItem('rotina_study', JSON.stringify(state.studyProgress));
+    imported++;
+  }
+  if (data.workoutProgress) {
+    state.workoutProgress = data.workoutProgress;
+    localStorage.setItem('rotina_workout', JSON.stringify(state.workoutProgress));
+    imported++;
+  }
+  if (data.studyTimeLog) {
+    state.studyTimeLog = data.studyTimeLog;
+    localStorage.setItem('rotina_studytime', JSON.stringify(state.studyTimeLog));
+    imported++;
+  }
+  // Restore all health days
+  if (data.healthHistory) {
+    Object.entries(data.healthHistory).forEach(([k, v]) => {
+      try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {}
+    });
+    imported++;
+  } else if (data.healthToday) {
+    saveTodayHealth(data.healthToday);
+    imported++;
+  }
+
+  if (imported > 0) {
+    showToast(`✅ Dados importados com sucesso!`, 'success');
+    // Refresh current view
+    navigateTo(state.currentView);
+  } else {
+    showToast('Nenhum dado reconhecido no arquivo', 'error');
+  }
+}
+
+function showToast(msg, type = 'success') {
+  let toast = document.getElementById('_app-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = '_app-toast';
+    toast.style.cssText = [
+      'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);',
+      'padding:12px 20px;border-radius:12px;font-size:13px;font-weight:700;',
+      'font-family:Inter,sans-serif;z-index:9999;transition:opacity 0.3s;',
+      'box-shadow:0 4px 20px rgba(0,0,0,0.4);pointer-events:none;',
+    ].join('');
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.background = type === 'error' ? '#ef4444' : '#22c55e';
+  toast.style.color = '#fff';
+  toast.style.opacity = '1';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+}
