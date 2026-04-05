@@ -541,5 +541,22 @@
     if (deSave) deSave.innerHTML = icon('check', 15);
   });
 </script>
+
+<!-- Service Worker registration with cache-busting -->
+<script>
+  if ('serviceWorker' in navigator) {
+    // First, clear all old caches, then register SW
+    if (window.caches) {
+      caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+    }
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      regs.forEach(r => r.unregister());
+    }).then(() => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(r => r.update())
+        .catch(err => console.warn('SW:', err));
+    });
+  }
+</script>
 </body>
 </html>
