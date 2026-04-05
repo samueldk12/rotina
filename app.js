@@ -1624,8 +1624,8 @@ function setEditTab(tab) {
 
 // ---- Studies rendering ----
 
-const SUBJECT_COLORS = ['#00d4ff','#7c3aed','#f59e0b','#22c55e','#ef4444','#06b6d4','#a855f7','#f97316','#8b5cf6','#ec4899'];
-const SUBJECT_ICONS = ['book','brain','ruler','pen','monitor','globe','database','gear','lock','cpu','building','barChart','ai','scale'];
+const DE_SUBJECT_COLORS = ['#00d4ff','#7c3aed','#f59e0b','#22c55e','#ef4444','#06b6d4','#a855f7','#f97316','#8b5cf6','#ec4899'];
+const DE_SUBJECT_ICONS = ['book','brain','ruler','pen','monitor','globe','database','gear','lock','cpu','building','barChart','ai','scale'];
 
 function _renderDeStudies() {
   const list = document.getElementById('de-studies-list');
@@ -1636,7 +1636,7 @@ function _renderDeStudies() {
   }
   list.innerHTML = _deState.studies.map((s, i) => `
     <div class="de-study-item">
-      <div class="de-study-color" style="background:${s.color || SUBJECT_COLORS[i % SUBJECT_COLORS.length]}"></div>
+      <div class="de-study-color" style="background:${s.color || DE_SUBJECT_COLORS[i % DE_SUBJECT_COLORS.length]}"></div>
       <div class="de-study-fields">
         <div class="de-study-name-row">
           <input class="de-study-name-inp" type="text" value="${_escHtml(s.subject)}"
@@ -1687,8 +1687,8 @@ function addStudyItem() {
     subject: 'Nova Matéria',
     duration: '1h',
     durationMin: 60,
-    iconKey: SUBJECT_ICONS[idx % SUBJECT_ICONS.length],
-    color: SUBJECT_COLORS[idx % SUBJECT_COLORS.length],
+    iconKey: DE_SUBJECT_ICONS[idx % DE_SUBJECT_ICONS.length],
+    color: DE_SUBJECT_COLORS[idx % DE_SUBJECT_COLORS.length],
     goalHours: 10,
   });
   _renderDeStudies();

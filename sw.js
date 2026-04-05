@@ -1,13 +1,13 @@
 // ---- VERSION: bump this whenever you deploy a new build ----
-const CACHE_NAME = 'rotina-v2.1';
+const CACHE_NAME = 'rotina-v2.2';
 
 const ASSETS = [
   './',
   './index.html',
   './style.css',
-  './app.js',
-  './data.js',
-  './icons.js',
+  './app.js?v=21',
+  './data.js?v=21',
+  './icons.js?v=21',
   './manifest.json',
   './icons/icon-512.png',
   './images/upper_body.png',
