@@ -1,5 +1,5 @@
 // ---- VERSION: bump this whenever you deploy a new build ----
-const CACHE_NAME = 'rotina-v2.0';
+const CACHE_NAME = 'rotina-v2.1';
 
 const ASSETS = [
   './',

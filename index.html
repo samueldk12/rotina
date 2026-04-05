@@ -321,6 +321,98 @@
   </div>
 </div>
 
+<!-- DAY EDIT MODAL -->
+<div id="day-edit-modal" class="modal-overlay">
+  <div class="modal-sheet day-edit-sheet" role="dialog" aria-modal="true" aria-labelledby="day-edit-title">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="day-edit-title">Editar Rotina</div>
+        <div class="modal-muscles" id="day-edit-subtitle">Segunda-feira</div>
+      </div>
+      <button class="modal-close" onclick="closeDayEditModal()" aria-label="Fechar" id="day-edit-close-btn"></button>
+    </div>
+
+    <!-- Scope toggle: Only today vs general -->
+    <div class="de-scope-row">
+      <button class="de-scope-btn active" id="de-scope-day" onclick="setEditScope('day')">
+        <span id="de-scope-day-icon"></span>
+        <span>Só este dia</span>
+      </button>
+      <button class="de-scope-btn" id="de-scope-general" onclick="setEditScope('general')">
+        <span id="de-scope-general-icon"></span>
+        <span>Rotina geral</span>
+      </button>
+    </div>
+    <div class="de-scope-hint" id="de-scope-hint">Alterações aplicadas apenas a este dia específico</div>
+
+    <!-- Tab row -->
+    <div class="de-tab-row">
+      <div class="de-tab active" id="de-tab-studies" onclick="setEditTab('studies')">
+        <span id="de-tab-studies-icon"></span> Estudos
+      </div>
+      <div class="de-tab" id="de-tab-workout" onclick="setEditTab('workout')">
+        <span id="de-tab-workout-icon"></span> Treino
+      </div>
+      <div class="de-tab" id="de-tab-notes" onclick="setEditTab('notes')">
+        <span id="de-tab-notes-icon"></span> Notas
+      </div>
+    </div>
+
+    <!-- STUDIES TAB -->
+    <div class="de-tab-content active" id="de-content-studies">
+      <div class="de-section-label">Matérias do dia <button class="de-add-btn" onclick="addStudyItem()" id="de-add-study-btn">+ Adicionar</button></div>
+      <div class="de-studies-list" id="de-studies-list"></div>
+    </div>
+
+    <!-- WORKOUT TAB -->
+    <div class="de-tab-content" id="de-content-workout">
+      <div class="de-section-label">Ficha de Treino</div>
+      <div class="de-sheet-picker" id="de-sheet-picker"></div>
+      <div class="de-section-label" style="margin-top:14px;">Foco do Treino</div>
+      <input type="text" class="de-input" id="de-workout-focus" placeholder="Ex: Ombro, Peito, Bíceps..." />
+      <div class="de-section-label" style="margin-top:14px;">Tempo estimado (min)</div>
+      <input type="number" class="de-input" id="de-workout-min" placeholder="Ex: 60" min="0" max="300" />
+      <div class="de-section-label" style="margin-top:14px;">
+        <span>Atividade Extra</span>
+      </div>
+      <div class="de-extras-row">
+        <button class="de-extra-btn" id="de-extra-walk" onclick="toggleExtra('walk')">
+          <span id="de-extra-walk-icon"></span> Caminhada
+        </button>
+        <button class="de-extra-btn" id="de-extra-bike" onclick="toggleExtra('bike')">
+          <span id="de-extra-bike-icon"></span> Ciclismo
+        </button>
+        <button class="de-extra-btn" id="de-extra-swim" onclick="toggleExtra('swim')">
+          <span id="de-extra-swim-icon"></span> Natação
+        </button>
+        <button class="de-extra-btn" id="de-extra-volley" onclick="toggleExtra('volley')">
+          <span id="de-extra-volley-icon"></span> Vôlei
+        </button>
+        <button class="de-extra-btn" id="de-extra-rest" onclick="toggleExtra('rest')">
+          <span id="de-extra-rest-icon"></span> Descanso
+        </button>
+      </div>
+    </div>
+
+    <!-- NOTES TAB -->
+    <div class="de-tab-content" id="de-content-notes">
+      <div class="de-section-label">Observações do Dia</div>
+      <textarea class="de-textarea" id="de-notes-input" placeholder="Ex: Dia de prova, só vou caminhar hoje. Foco em recuperação..."></textarea>
+      <div class="de-reset-row">
+        <button class="de-reset-btn" onclick="resetDayOverride()" id="de-reset-btn">
+          <span id="de-reset-icon"></span> Restaurar padrão
+        </button>
+      </div>
+    </div>
+
+    <!-- SAVE BUTTON -->
+    <button class="de-save-btn" onclick="saveDayEdit()" id="de-save-btn">
+      <span id="de-save-icon"></span> Salvar Alterações
+    </button>
+  </div>
+</div>
+
 <!-- MEDIA MODAL -->
 <div id="media-modal" class="modal-overlay">
   <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -419,6 +511,34 @@
     // Health section title
     const healthTitle = document.getElementById('section-health-title');
     if (healthTitle) healthTitle.innerHTML = `<span class="section-icon">${icon('droplets', 18)}</span> Saúde do Dia`;
+
+    // Day edit modal icons
+    const deClose = document.getElementById('day-edit-close-btn');
+    if (deClose) deClose.innerHTML = ICONS.close;
+    const deScopeDay = document.getElementById('de-scope-day-icon');
+    if (deScopeDay) deScopeDay.innerHTML = icon('sun', 14);
+    const deScopeGen = document.getElementById('de-scope-general-icon');
+    if (deScopeGen) deScopeGen.innerHTML = icon('calendar', 14);
+    const deTabS = document.getElementById('de-tab-studies-icon');
+    if (deTabS) deTabS.innerHTML = icon('book', 12);
+    const deTabW = document.getElementById('de-tab-workout-icon');
+    if (deTabW) deTabW.innerHTML = icon('dumbbell', 12);
+    const deTabN = document.getElementById('de-tab-notes-icon');
+    if (deTabN) deTabN.innerHTML = icon('pen', 12);
+    const deWalk = document.getElementById('de-extra-walk-icon');
+    if (deWalk) deWalk.innerHTML = icon('flame', 13);
+    const deBike = document.getElementById('de-extra-bike-icon');
+    if (deBike) deBike.innerHTML = icon('flame', 13);
+    const deSwim = document.getElementById('de-extra-swim-icon');
+    if (deSwim) deSwim.innerHTML = icon('droplets', 13);
+    const deVolley = document.getElementById('de-extra-volley-icon');
+    if (deVolley) deVolley.innerHTML = icon('volleyball', 13);
+    const deRest = document.getElementById('de-extra-rest-icon');
+    if (deRest) deRest.innerHTML = icon('moon', 13);
+    const deReset = document.getElementById('de-reset-icon');
+    if (deReset) deReset.innerHTML = icon('refresh', 13);
+    const deSave = document.getElementById('de-save-icon');
+    if (deSave) deSave.innerHTML = icon('check', 15);
   });
 </script>
 </body>

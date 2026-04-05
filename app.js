@@ -311,15 +311,26 @@ function selectWeekDay(dayNum) {
 
 function renderWeekDayDetail(dayNum) {
   const routine = WEEKLY_ROUTINE[dayNum];
-  const sheet = WORKOUT_SHEETS[routine.workout.sheetId];
+  // Use effective routine (with overrides applied)
+  const effective = typeof getEffectiveRoutine === 'function' ? getEffectiveRoutine(dayNum) : routine;
+  const sheet = WORKOUT_SHEETS[effective.workout.sheetId];
   const isToday = dayNum === new Date().getDay();
-  const workP = countWorkoutProgress(routine.workout.sheetId);
+  const workP = countWorkoutProgress(effective.workout.sheetId);
   const wf = state.weekFilter;
 
+  // Override badges
+  const hasDay = typeof hasDayOverride === 'function' && hasDayOverride(dayNum);
+  const hasGen = typeof hasGeneralOverride === 'function' && hasGeneralOverride(dayNum);
+  const overrideBadge = hasDay
+    ? `<span class="day-override-badge">✦ Personalizado</span>`
+    : hasGen
+    ? `<span class="day-override-badge">✦ Rotina Editada</span>`
+    : '';
+
   // ---- Time forecast calculation ----
-  const studyTotalMin = routine.studies.reduce((acc, s) => acc + (s.durationMin || 0), 0);
-  const workoutMin = routine.workout.estimatedMin || 40;
-  const volleyballMin = routine.workout.volleyballMin || 0;
+  const studyTotalMin = effective.studies.reduce((acc, s) => acc + (s.durationMin || 0), 0);
+  const workoutMin = effective.workout.estimatedMin || 40;
+  const volleyballMin = effective.workout.volleyballMin || 0;
   const totalActivityMin = studyTotalMin + workoutMin + volleyballMin;
 
   function fmtMin(m) {
@@ -361,11 +372,28 @@ function renderWeekDayDetail(dayNum) {
 
   const forecastHtml = `<div class="day-time-forecast">${forecastItems}</div>`;
 
+  // Extra activities note from override
+  const extras = (typeof loadDayOverrides === 'function' && loadDayOverrides()[dayNum]?.extras) || [];
+  const extrasMap = { walk: '🚶 Caminhada', bike: '🚴 Ciclismo', swim: '🏊 Natação', volley: '🏐 Vôlei', rest: '🌙 Descanso' };
+  const extrasHtml = extras.length > 0 ? `
+    <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">Atividades Extras</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">${extras.map(e => `<span style="font-size:12px;font-weight:600;color:#c4b5fd">${extrasMap[e] || e}</span>`).join('')}</div>
+    </div>` : '';
+
+  // Notes from override
+  const notes = effective.notes || '';
+  const notesHtml = notes ? `
+    <div style="background:rgba(234,179,8,0.07);border:1px solid rgba(234,179,8,0.18);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:700;color:var(--yellow);margin-bottom:4px;">${icon('pen',11)} Observações</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">${_escHtml ? _escHtml(notes) : notes}</div>
+    </div>` : '';
+
   // Studies block
   const studiesHtml = wf !== 'workout' ? `
     <div class="subject-block">
       <div class="subject-block-title">${icon('book', 14)} Estudos do Dia</div>
-      ${routine.studies.map(s => `
+      ${effective.studies.map(s => `
         <div class="subject-item">
           <div class="subject-icon-sm" style="color:${s.color}">${icon(s.iconKey, 16)}</div>
           <span class="subject-name">${s.subject}</span>
@@ -377,7 +405,7 @@ function renderWeekDayDetail(dayNum) {
   ` : '';
 
   // Workout block
-  const focusChips = routine.workout.focus.split(', ').map(f =>
+  const focusChips = (effective.workout.focus || '').split(', ').map(f =>
     `<span class="focus-chip">${f}</span>`
   ).join('');
 
@@ -399,11 +427,11 @@ function renderWeekDayDetail(dayNum) {
         </div>
         <div>
           <div class="sheet-name">${sheet.name} · ${sheet.subtitle}</div>
-          <div class="sheet-label">${routine.workout.label}</div>
+          <div class="sheet-label">${effective.workout.label || ''}</div>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);margin-bottom:8px;">
-        ${icon('box', 12)} ${routine.workout.module}
+        ${icon('box', 12)} ${effective.workout.module || ''}
       </div>
       <div class="focus-chips">${focusChips}</div>
       <div class="workout-est-time">
@@ -421,12 +449,20 @@ function renderWeekDayDetail(dayNum) {
 
   document.getElementById('week-day-detail').innerHTML = `
     <div class="day-detail-header">
-      <div class="day-detail-title">${routine.dayName}${isToday ? ' <span style="color:var(--cyan);font-size:14px;">· Hoje</span>' : ''}</div>
+      <div class="day-detail-title">
+        ${routine.dayName}${isToday ? ' <span style="color:var(--cyan);font-size:14px;">· Hoje</span>' : ''}
+        ${overrideBadge}
+        <button class="day-edit-trigger" onclick="openDayEditModal(${dayNum})">
+          ${icon('pen', 11)} Editar
+        </button>
+      </div>
     </div>
     <div class="day-img-wrap">
       <img src="${routine.dayImage}" alt="${routine.dayName}" class="day-overview-img" />
-      <div class="day-img-overlay"><span>${routine.workout.label}</span></div>
+      <div class="day-img-overlay"><span>${effective.workout.label || ''}</span></div>
     </div>
+    ${notesHtml}
+    ${extrasHtml}
     ${forecastHtml}
     ${studiesHtml}
     ${workoutHtml}
@@ -1385,3 +1421,391 @@ function showToast(msg, type = 'success') {
   clearTimeout(toast._timer);
   toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
 }
+
+// =============================================
+//   DAY ROUTINE EDIT SYSTEM
+// =============================================
+
+/**
+ * dayOverrides is stored in localStorage as 'rotina_overrides'
+ * Structure: { dayNum: { studies: [...], workout: {...}, notes: '', extras: [...] } }
+ *
+ * generalOverrides is stored as 'rotina_general_overrides'
+ * Structure: { dayNum: { studies: [...], workout: {...}, notes: '' } }
+ */
+
+const _deState = {
+  dayNum: null,
+  scope: 'day',       // 'day' | 'general'
+  activeTab: 'studies',
+  studies: [],        // array of {subject, duration, durationMin, color, iconKey}
+  sheetId: null,
+  workoutFocus: '',
+  workoutMin: 0,
+  extras: [],         // active extra activities
+  notes: '',
+};
+
+// ---- Override storage ----
+
+function loadDayOverrides() {
+  try {
+    const raw = localStorage.getItem('rotina_overrides');
+    return raw ? JSON.parse(raw) : {};
+  } catch(e) { return {}; }
+}
+
+function saveDayOverrides(data) {
+  try { localStorage.setItem('rotina_overrides', JSON.stringify(data)); } catch(e) {}
+}
+
+function loadGeneralOverrides() {
+  try {
+    const raw = localStorage.getItem('rotina_general_overrides');
+    return raw ? JSON.parse(raw) : {};
+  } catch(e) { return {}; }
+}
+
+function saveGeneralOverrides(data) {
+  try { localStorage.setItem('rotina_general_overrides', JSON.stringify(data)); } catch(e) {}
+}
+
+/**
+ * Returns the effective routine for a day, merging overrides on top of defaults.
+ */
+function getEffectiveRoutine(dayNum) {
+  const base = WEEKLY_ROUTINE[dayNum];
+  const genOverrides = loadGeneralOverrides();
+  const dayOverrides = loadDayOverrides();
+
+  let effective = { ...base,
+    studies: [...base.studies],
+    workout: { ...base.workout }
+  };
+
+  // Apply general override first
+  if (genOverrides[dayNum]) {
+    const g = genOverrides[dayNum];
+    if (g.studies) effective.studies = g.studies;
+    if (g.workout?.sheetId) effective.workout.sheetId = g.workout.sheetId;
+    if (g.workout?.focus) effective.workout.focus = g.workout.focus;
+    if (g.workout?.estimatedMin) effective.workout.estimatedMin = g.workout.estimatedMin;
+    if (g.notes) effective.notes = g.notes;
+  }
+
+  // Day-specific override on top (higher priority)
+  if (dayOverrides[dayNum]) {
+    const d = dayOverrides[dayNum];
+    if (d.studies) effective.studies = d.studies;
+    if (d.workout?.sheetId) effective.workout.sheetId = d.workout.sheetId;
+    if (d.workout?.focus) effective.workout.focus = d.workout.focus;
+    if (d.workout?.estimatedMin) effective.workout.estimatedMin = d.workout.estimatedMin;
+    if (d.extras) effective.extras = d.extras;
+    if (d.notes) effective.notes = d.notes;
+  }
+
+  return effective;
+}
+
+function hasDayOverride(dayNum) {
+  const overrides = loadDayOverrides();
+  return !!overrides[dayNum];
+}
+
+function hasGeneralOverride(dayNum) {
+  const overrides = loadGeneralOverrides();
+  return !!overrides[dayNum];
+}
+
+// ---- Open / Close ----
+
+function openDayEditModal(dayNum) {
+  _deState.dayNum = dayNum;
+  _deState.scope = 'day';
+  _deState.activeTab = 'studies';
+
+  const routine = WEEKLY_ROUTINE[dayNum];
+  const effective = getEffectiveRoutine(dayNum);
+
+  // Load existing override or current effective
+  const dayOverrides = loadDayOverrides();
+  const existing = dayOverrides[dayNum] || {};
+
+  _deState.studies = JSON.parse(JSON.stringify(effective.studies));
+  _deState.sheetId = effective.workout.sheetId;
+  _deState.workoutFocus = effective.workout.focus || '';
+  _deState.workoutMin = effective.workout.estimatedMin || 0;
+  _deState.extras = existing.extras || [];
+  _deState.notes = existing.notes || '';
+
+  // Update header
+  document.getElementById('day-edit-title').textContent = 'Editar Rotina';
+  document.getElementById('day-edit-subtitle').textContent = routine.dayName;
+
+  setEditScope('day');
+  setEditTab('studies');
+  _renderDeStudies();
+  _renderDeSheetPicker();
+  _renderDeExtras();
+  document.getElementById('de-workout-focus').value = _deState.workoutFocus;
+  document.getElementById('de-workout-min').value = _deState.workoutMin;
+  document.getElementById('de-notes-input').value = _deState.notes;
+
+  document.getElementById('day-edit-modal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDayEditModal() {
+  document.getElementById('day-edit-modal').classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+// ---- Scope & Tab controls ----
+
+function setEditScope(scope) {
+  _deState.scope = scope;
+  document.getElementById('de-scope-day').classList.toggle('active', scope === 'day');
+  document.getElementById('de-scope-general').classList.toggle('active', scope === 'general');
+  const hint = document.getElementById('de-scope-hint');
+  if (hint) {
+    hint.textContent = scope === 'day'
+      ? 'Alterações aplicadas apenas a este dia específico'
+      : 'Alterações aplicadas à rotina padrão deste dia da semana (todos os ' + WEEKLY_ROUTINE[_deState.dayNum]?.dayName + 's futuros)';
+  }
+  // In general scope, load existing general override if any
+  if (scope === 'general') {
+    const genOverrides = loadGeneralOverrides();
+    const existing = genOverrides[_deState.dayNum] || {};
+    const routine = WEEKLY_ROUTINE[_deState.dayNum];
+    if (existing.studies) _deState.studies = JSON.parse(JSON.stringify(existing.studies));
+    else _deState.studies = JSON.parse(JSON.stringify(routine.studies));
+    if (existing.workout?.sheetId) _deState.sheetId = existing.workout.sheetId;
+    else _deState.sheetId = routine.workout.sheetId;
+    if (existing.workout?.focus) _deState.workoutFocus = existing.workout.focus;
+    else _deState.workoutFocus = routine.workout.focus || '';
+    if (existing.workout?.estimatedMin) _deState.workoutMin = existing.workout.estimatedMin;
+    else _deState.workoutMin = routine.workout.estimatedMin || 0;
+    _deState.notes = existing.notes || '';
+    _deState.extras = [];
+    document.getElementById('de-extras-row') && (_deState.extras = []);
+    _renderDeStudies();
+    _renderDeSheetPicker();
+    _renderDeExtras();
+    document.getElementById('de-workout-focus').value = _deState.workoutFocus;
+    document.getElementById('de-workout-min').value = _deState.workoutMin;
+    document.getElementById('de-notes-input').value = _deState.notes;
+  } else {
+    // Reload day override
+    const dayOverrides = loadDayOverrides();
+    const existing = dayOverrides[_deState.dayNum] || {};
+    const effective = getEffectiveRoutine(_deState.dayNum);
+    _deState.studies = JSON.parse(JSON.stringify(effective.studies));
+    _deState.sheetId = effective.workout.sheetId;
+    _deState.workoutFocus = effective.workout.focus || '';
+    _deState.workoutMin = effective.workout.estimatedMin || 0;
+    _deState.extras = existing.extras || [];
+    _deState.notes = existing.notes || '';
+    _renderDeStudies();
+    _renderDeSheetPicker();
+    _renderDeExtras();
+    document.getElementById('de-workout-focus').value = _deState.workoutFocus;
+    document.getElementById('de-workout-min').value = _deState.workoutMin;
+    document.getElementById('de-notes-input').value = _deState.notes;
+  }
+}
+
+function setEditTab(tab) {
+  _deState.activeTab = tab;
+  ['studies', 'workout', 'notes'].forEach(t => {
+    document.getElementById(`de-tab-${t}`)?.classList.toggle('active', t === tab);
+    document.getElementById(`de-content-${t}`)?.classList.toggle('active', t === tab);
+  });
+}
+
+// ---- Studies rendering ----
+
+const SUBJECT_COLORS = ['#00d4ff','#7c3aed','#f59e0b','#22c55e','#ef4444','#06b6d4','#a855f7','#f97316','#8b5cf6','#ec4899'];
+const SUBJECT_ICONS = ['book','brain','ruler','pen','monitor','globe','database','gear','lock','cpu','building','barChart','ai','scale'];
+
+function _renderDeStudies() {
+  const list = document.getElementById('de-studies-list');
+  if (!list) return;
+  if (_deState.studies.length === 0) {
+    list.innerHTML = `<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:20px;">Nenhuma matéria. Adicione uma com o botão acima.</div>`;
+    return;
+  }
+  list.innerHTML = _deState.studies.map((s, i) => `
+    <div class="de-study-item">
+      <div class="de-study-color" style="background:${s.color || SUBJECT_COLORS[i % SUBJECT_COLORS.length]}"></div>
+      <div class="de-study-fields">
+        <div class="de-study-name-row">
+          <input class="de-study-name-inp" type="text" value="${_escHtml(s.subject)}"
+                 oninput="updateStudyField(${i}, 'subject', this.value)"
+                 placeholder="Matéria..." />
+          <input class="de-study-dur-inp" type="text" value="${_escHtml(s.duration || '')}"
+                 oninput="updateStudyField(${i}, 'duration', this.value)"
+                 placeholder="1h30" />
+        </div>
+      </div>
+      <button class="de-study-remove" onclick="removeStudyItem(${i})" title="Remover">×</button>
+    </div>
+  `).join('');
+}
+
+function _escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function updateStudyField(idx, field, value) {
+  if (!_deState.studies[idx]) return;
+  _deState.studies[idx][field] = value;
+  if (field === 'duration') {
+    // Parse duration to minutes
+    const parsed = _parseDurationToMin(value);
+    if (parsed > 0) _deState.studies[idx].durationMin = parsed;
+  }
+}
+
+function _parseDurationToMin(str) {
+  if (!str) return 0;
+  str = str.trim().toLowerCase();
+  // Match patterns like "1h30", "1h30min", "2h", "45min", "45"
+  const hMatch = str.match(/(\d+)\s*h(?:oras?)?[\s,]*(\d+)?\s*(?:min)?/);
+  if (hMatch) {
+    const h = parseInt(hMatch[1]) || 0;
+    const m = parseInt(hMatch[2]) || 0;
+    return h * 60 + m;
+  }
+  const mMatch = str.match(/^(\d+)\s*(?:min)?$/);
+  if (mMatch) return parseInt(mMatch[1]) || 0;
+  return 0;
+}
+
+function addStudyItem() {
+  const idx = _deState.studies.length;
+  _deState.studies.push({
+    subject: 'Nova Matéria',
+    duration: '1h',
+    durationMin: 60,
+    iconKey: SUBJECT_ICONS[idx % SUBJECT_ICONS.length],
+    color: SUBJECT_COLORS[idx % SUBJECT_COLORS.length],
+    goalHours: 10,
+  });
+  _renderDeStudies();
+  // Focus the new input
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('.de-study-name-inp');
+    if (inputs.length > 0) inputs[inputs.length - 1].focus();
+  }, 50);
+}
+
+function removeStudyItem(idx) {
+  _deState.studies.splice(idx, 1);
+  _renderDeStudies();
+}
+
+// ---- Workout rendering ----
+
+function _renderDeSheetPicker() {
+  const picker = document.getElementById('de-sheet-picker');
+  if (!picker) return;
+  picker.innerHTML = Object.values(WORKOUT_SHEETS).map(s => `
+    <button class="de-sheet-option ${_deState.sheetId === s.id ? 'active' : ''}"
+            style="color:${_deState.sheetId === s.id ? s.color : 'var(--text-secondary)'}"
+            onclick="selectDeSheet('${s.id}')">
+      <div class="de-sheet-dot" style="background:${s.color}"></div>
+      <div>
+        <div style="font-weight:700">${s.name}</div>
+        <div style="font-size:10px;color:var(--text-muted);font-weight:500">${s.description}</div>
+      </div>
+    </button>
+  `).join('');
+}
+
+function selectDeSheet(sheetId) {
+  _deState.sheetId = sheetId;
+  _renderDeSheetPicker();
+}
+
+// ---- Extras ----
+
+function _renderDeExtras() {
+  const extras = ['walk','bike','swim','volley','rest'];
+  extras.forEach(key => {
+    document.getElementById(`de-extra-${key}`)?.classList.toggle('active', _deState.extras.includes(key));
+  });
+}
+
+function toggleExtra(key) {
+  const idx = _deState.extras.indexOf(key);
+  if (idx >= 0) _deState.extras.splice(idx, 1);
+  else _deState.extras.push(key);
+  _renderDeExtras();
+}
+
+// ---- Save ----
+
+function saveDayEdit() {
+  // Sync live input values
+  const focusEl = document.getElementById('de-workout-focus');
+  const minEl = document.getElementById('de-workout-min');
+  const notesEl = document.getElementById('de-notes-input');
+  if (focusEl) _deState.workoutFocus = focusEl.value.trim();
+  if (minEl) _deState.workoutMin = parseInt(minEl.value) || 0;
+  if (notesEl) _deState.notes = notesEl.value;
+
+  const overrideData = {
+    studies: _deState.studies,
+    workout: {
+      sheetId: _deState.sheetId,
+      focus: _deState.workoutFocus,
+      estimatedMin: _deState.workoutMin,
+    },
+    notes: _deState.notes,
+  };
+
+  if (_deState.scope === 'day') {
+    const overrides = loadDayOverrides();
+    if (_deState.extras.length > 0) overrideData.extras = _deState.extras;
+    overrides[_deState.dayNum] = overrideData;
+    saveDayOverrides(overrides);
+    showToast(`✅ Rotina de ${WEEKLY_ROUTINE[_deState.dayNum].dayName} personalizada!`);
+  } else {
+    const genOverrides = loadGeneralOverrides();
+    genOverrides[_deState.dayNum] = overrideData;
+    saveGeneralOverrides(genOverrides);
+    showToast(`✅ Rotina geral de ${WEEKLY_ROUTINE[_deState.dayNum].dayName} atualizada!`);
+  }
+
+  closeDayEditModal();
+  // Refresh visible view
+  if (state.currentView === 'week') renderWeek();
+  else if (state.currentView === 'home') renderHome();
+}
+
+function resetDayOverride() {
+  if (!confirm(`Restaurar a rotina padrão de ${WEEKLY_ROUTINE[_deState.dayNum]?.dayName}?`)) return;
+
+  if (_deState.scope === 'day') {
+    const overrides = loadDayOverrides();
+    delete overrides[_deState.dayNum];
+    saveDayOverrides(overrides);
+  } else {
+    const genOverrides = loadGeneralOverrides();
+    delete genOverrides[_deState.dayNum];
+    saveGeneralOverrides(genOverrides);
+  }
+
+  showToast('🔄 Rotina restaurada ao padrão!', 'success');
+  closeDayEditModal();
+  if (state.currentView === 'week') renderWeek();
+  else if (state.currentView === 'home') renderHome();
+}
+
+// ---- Close on overlay click ----
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('day-edit-modal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeDayEditModal();
+  });
+});
+
