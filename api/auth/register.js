@@ -9,7 +9,7 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
-  const { username, email, password } = req.body || {};
+  const { username, email, password, routineType } = req.body || {};
 
   if (!username || !password) {
     return res.status(400).json({ error: 'Username e senha são obrigatórios' });
@@ -47,10 +47,19 @@ module.exports = async (req, res) => {
 
     const user = result.rows[0];
 
-    // Initialize empty user_data row
+    // Define initial overrides if starting "blank"
+    let generalOverrides = '{}';
+    if (routineType === 'blank') {
+      const emptyDay = { studies: [], workout: { sheetId: "", focus: "", estimatedMin: 0 }, notes: "" };
+      const blankData = {};
+      for (let i = 0; i < 7; i++) blankData[i] = emptyDay;
+      generalOverrides = JSON.stringify(blankData);
+    }
+
+    // Initialize user_data row
     await pool.query(
-      `INSERT INTO user_data (user_id) VALUES ($1) ON CONFLICT DO NOTHING`,
-      [user.id]
+      `INSERT INTO user_data (user_id, general_overrides) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [user.id, generalOverrides]
     );
 
     const token = signToken({ userId: user.id, username: user.username });

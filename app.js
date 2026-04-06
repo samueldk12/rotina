@@ -219,6 +219,7 @@ async function authRegister(e) {
   const email    = document.getElementById('auth-reg-email')?.value.trim();
   const password = document.getElementById('auth-reg-password')?.value;
   const confirm  = document.getElementById('auth-reg-confirm')?.value;
+  const routineType = document.getElementById('auth-reg-routine')?.value || 'default';
 
   if (!username || !password) return;
   if (password !== confirm) {
@@ -241,7 +242,7 @@ async function authRegister(e) {
     const res = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, password }),
+      body: JSON.stringify({ username, email, password, routineType }),
     });
     const data = await res.json();
 

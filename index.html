@@ -84,6 +84,14 @@
         <input class="auth-input" id="auth-reg-confirm" type="password"
                placeholder="••••••••" autocomplete="new-password" required />
       </div>
+      <div class="auth-input-group">
+        <label class="auth-label">Configuração Inicial</label>
+        <select class="auth-input" id="auth-reg-routine" style="appearance: none;">
+          <option value="default">Começar com plano sugerido</option>
+          <option value="blank">Tudo zerado (Montar do zero)</option>
+        </select>
+        <span class="auth-input-hint">Pode ser alterado livremente depois.</span>
+      </div>
       <button class="auth-btn register" type="submit" id="auth-register-btn">
         <span id="auth-register-btn-label">Criar Conta</span>
       </button>
