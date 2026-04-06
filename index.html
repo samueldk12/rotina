@@ -515,7 +515,7 @@
     <div class="modal-handle"></div>
     <div class="modal-header" style="flex-shrink: 0;">
       <div>
-        <div class="modal-title"><span class="section-icon">${icon('pen', 18)}</span> Bloco de Notas VIP</div>
+        <div class="modal-title" id="notes-modal-title"></div>
         <div class="modal-muscles">Anotações e tarefas diárias</div>
       </div>
       <button class="modal-close" onclick="closeNotesModal()" aria-label="Fechar" id="notes-close-icon"></button>
@@ -741,6 +741,12 @@
     if (deReset) deReset.innerHTML = icon('refresh', 13);
     const deSave = document.getElementById('de-save-icon');
     if (deSave) deSave.innerHTML = icon('check', 15);
+
+    // Notes modal icons
+    const notesTitle = document.getElementById('notes-modal-title');
+    if (notesTitle) notesTitle.innerHTML = `<span class="section-icon">${icon('pen', 18)}</span> Bloco de Notas VIP`;
+    const notesCloseIcon = document.getElementById('notes-close-icon');
+    if (notesCloseIcon) notesCloseIcon.innerHTML = ICONS.close;
   });
 </script>
 

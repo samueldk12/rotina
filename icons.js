@@ -107,5 +107,7 @@ const SUBJECT_ICONS = {
 function icon(name, size = 18, extraClass = '') {
   const svg = ICONS[name];
   if (!svg) return '';
-  return `<span class="icon icon-${name} ${extraClass}" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${svg}</span>`;
+  // Ensure the SVG element itself has a fixed size to avoid stretching
+  const resizedSvg = svg.replace('<svg ', `<svg width="${size}" height="${size}" `);
+  return `<span class="icon icon-${name} ${extraClass}" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${resizedSvg}</span>`;
 }
