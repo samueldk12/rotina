@@ -21,6 +21,76 @@
 </head>
 <body>
 
+<!-- AUTH OVERLAY -->
+<div id="auth-overlay">
+  <div class="auth-bg-blob auth-bg-blob-1"></div>
+  <div class="auth-bg-blob auth-bg-blob-2"></div>
+
+  <div class="auth-card">
+    <!-- Logo -->
+    <div class="auth-logo">
+      <img src="./icons/icon-512.png" alt="Minha Rotina" class="auth-logo-img" />
+      <div class="auth-logo-title">Minha Rotina</div>
+      <div class="auth-logo-sub">Estudos &amp; Treinos · Sincronizado</div>
+    </div>
+
+    <!-- Tab switcher -->
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="auth-tab-login" onclick="authSwitchTab('login')">Entrar</div>
+      <div class="auth-tab" id="auth-tab-register" onclick="authSwitchTab('register')">Cadastrar</div>
+    </div>
+
+    <!-- Message -->
+    <div class="auth-msg" id="auth-msg"></div>
+
+    <!-- LOGIN FORM -->
+    <form class="auth-form" id="auth-form-login" onsubmit="authLogin(event)">
+      <div class="auth-input-group">
+        <label class="auth-label">Username</label>
+        <input class="auth-input" id="auth-login-username" type="text"
+               placeholder="seu_usuario" autocomplete="username" required />
+      </div>
+      <div class="auth-input-group">
+        <label class="auth-label">Senha</label>
+        <input class="auth-input" id="auth-login-password" type="password"
+               placeholder="••••••••" autocomplete="current-password" required />
+      </div>
+      <button class="auth-btn" type="submit" id="auth-login-btn">
+        <span id="auth-login-btn-label">Entrar</span>
+      </button>
+    </form>
+
+    <!-- REGISTER FORM -->
+    <form class="auth-form" id="auth-form-register" onsubmit="authRegister(event)" style="display:none;">
+      <div class="auth-input-group">
+        <label class="auth-label">Username</label>
+        <input class="auth-input" id="auth-reg-username" type="text"
+               placeholder="seu_usuario" autocomplete="username" required />
+        <span class="auth-input-hint">Mínimo 3 caracteres, sem espaços</span>
+      </div>
+      <div class="auth-input-group">
+        <label class="auth-label">E-mail (opcional)</label>
+        <input class="auth-input" id="auth-reg-email" type="email"
+               placeholder="email@exemplo.com" autocomplete="email" />
+      </div>
+      <div class="auth-input-group">
+        <label class="auth-label">Senha</label>
+        <input class="auth-input" id="auth-reg-password" type="password"
+               placeholder="••••••••" autocomplete="new-password" required />
+        <span class="auth-input-hint">Mínimo 6 caracteres</span>
+      </div>
+      <div class="auth-input-group">
+        <label class="auth-label">Confirmar Senha</label>
+        <input class="auth-input" id="auth-reg-confirm" type="password"
+               placeholder="••••••••" autocomplete="new-password" required />
+      </div>
+      <button class="auth-btn register" type="submit" id="auth-register-btn">
+        <span id="auth-register-btn-label">Criar Conta</span>
+      </button>
+    </form>
+  </div>
+</div>
+
 <div id="app">
 
   <!-- TOP HEADER -->
@@ -29,7 +99,14 @@
       <img src="./icons/icon-512.png" alt="Minha Rotina" />
       <span class="header-logo-text">Minha Rotina</span>
     </div>
-    <div class="header-date" id="header-date">Segunda-feira</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div id="sync-indicator"></div>
+      <div id="header-user-badge" onclick="authShowLogout()" title="Sair">
+        <div class="header-user-avatar" id="header-user-avatar">?</div>
+        <span id="header-user-name"></span>
+      </div>
+      <div class="header-date" id="header-date">Segunda-feira</div>
+    </div>
   </header>
 
   <!-- TIMER BAR -->

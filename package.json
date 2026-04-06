@@ -1,0 +1,14 @@
+{
+  "name": "minha-rotina",
+  "version": "1.0.0",
+  "description": "PWA de rotina de estudos e treinos",
+  "private": true,
+  "engines": {
+    "node": ">=18.x"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.3"
+  }
+}

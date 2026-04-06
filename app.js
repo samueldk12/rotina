@@ -2,6 +2,12 @@
    MINHA ROTINA — APP LOGIC
    ============================================= */
 
+// ─── API BASE (null when served locally with Python) ───────────────────────
+const API_BASE = (function() {
+  const h = window.location.hostname;
+  return (h === 'localhost' || h === '127.0.0.1' || h === '') ? null : '/api';
+})();
+
 // ---- STATE ----
 const state = {
   currentView: 'home',
@@ -32,12 +38,366 @@ const state = {
   pomodoroCount: 0,
 };
 
+// =============================================
+//   AUTH & SYNC SYSTEM
+// =============================================
+
+/** Returns the stored JWT token, or null */
+function authGetToken() {
+  return localStorage.getItem('rotina_token') || null;
+}
+
+/** Returns stored user info object, or null */
+function authGetUser() {
+  try {
+    const raw = localStorage.getItem('rotina_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
+/** Saves auth data and updates the header badge */
+function authSaveSession(token, user) {
+  localStorage.setItem('rotina_token', token);
+  localStorage.setItem('rotina_user', JSON.stringify(user));
+  _authUpdateBadge(user);
+}
+
+/** Clears auth data and shows login screen */
+function authClearSession() {
+  localStorage.removeItem('rotina_token');
+  localStorage.removeItem('rotina_user');
+  _authUpdateBadge(null);
+  document.getElementById('auth-overlay')?.classList.remove('hidden');
+}
+
+/** Updates the header user badge */
+function _authUpdateBadge(user) {
+  const avatar = document.getElementById('header-user-avatar');
+  const name   = document.getElementById('header-user-name');
+  if (!avatar || !name) return;
+  if (user) {
+    const initials = (user.username || '?').slice(0,2).toUpperCase();
+    avatar.textContent = initials;
+    name.textContent   = user.username;
+  } else {
+    avatar.textContent = '?';
+    name.textContent   = '';
+  }
+}
+
+/** On startup: check stored token, then sync or show login */
+async function authInitSession() {
+  const token = authGetToken();
+  const user  = authGetUser();
+
+  if (!token || !user) {
+    // No session → show login screen
+    document.getElementById('auth-overlay')?.classList.remove('hidden');
+    return;
+  }
+
+  // Verify token with server (only if API is available)
+  if (API_BASE) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/verify`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        // Token expired or invalid
+        authClearSession();
+        return;
+      }
+    } catch(e) {
+      // Offline — trust stored token
+      console.log('📴 Offline — using stored session');
+    }
+  }
+
+  // Session valid → update badge, sync data, show app
+  _authUpdateBadge(user);
+  document.getElementById('auth-overlay')?.classList.add('hidden');
+  loadState();
+  navigateTo('home');
+
+  if (API_BASE) {
+    syncFromServer();
+  }
+}
+
+// ── Auth UI functions ─────────────────────────────────────────────────────
+
+function authSwitchTab(tab) {
+  const loginForm = document.getElementById('auth-form-login');
+  const regForm   = document.getElementById('auth-form-register');
+  const tabLogin  = document.getElementById('auth-tab-login');
+  const tabReg    = document.getElementById('auth-tab-register');
+  _authClearMsg();
+  if (tab === 'login') {
+    loginForm.style.display = '';
+    regForm.style.display   = 'none';
+    tabLogin.classList.add('active');
+    tabReg.classList.remove('active');
+  } else {
+    loginForm.style.display = 'none';
+    regForm.style.display   = '';
+    tabReg.classList.add('active');
+    tabLogin.classList.remove('active');
+  }
+}
+
+function _authMsg(msg, type = 'error') {
+  const el = document.getElementById('auth-msg');
+  if (!el) return;
+  el.textContent = msg;
+  el.className   = `auth-msg ${type}`;
+}
+
+function _authClearMsg() {
+  const el = document.getElementById('auth-msg');
+  if (el) el.className = 'auth-msg';
+}
+
+function _authSetLoading(btnId, labelId, loading, label) {
+  const btn   = document.getElementById(btnId);
+  const lbl   = document.getElementById(labelId);
+  if (!btn || !lbl) return;
+  btn.disabled = loading;
+  if (loading) {
+    lbl.innerHTML = '<span class="auth-spinner"></span>';
+  } else {
+    lbl.textContent = label;
+  }
+}
+
+async function authLogin(e) {
+  e.preventDefault();
+  _authClearMsg();
+  const username = document.getElementById('auth-login-username')?.value.trim();
+  const password = document.getElementById('auth-login-password')?.value;
+
+  if (!username || !password) return;
+
+  if (!API_BASE) {
+    _authMsg('Servidor não disponível no modo local. Faça deploy no Vercel.', 'error');
+    return;
+  }
+
+  _authSetLoading('auth-login-btn', 'auth-login-btn-label', true);
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      _authMsg(data.error || 'Erro ao fazer login');
+      return;
+    }
+
+    authSaveSession(data.token, data.user);
+    document.getElementById('auth-overlay')?.classList.add('hidden');
+    loadState();
+    navigateTo('home');
+    syncFromServer();
+  } catch(err) {
+    _authMsg('Erro de conexão. Verifique sua internet.');
+  } finally {
+    _authSetLoading('auth-login-btn', 'auth-login-btn-label', false, 'Entrar');
+  }
+}
+
+async function authRegister(e) {
+  e.preventDefault();
+  _authClearMsg();
+  const username = document.getElementById('auth-reg-username')?.value.trim();
+  const email    = document.getElementById('auth-reg-email')?.value.trim();
+  const password = document.getElementById('auth-reg-password')?.value;
+  const confirm  = document.getElementById('auth-reg-confirm')?.value;
+
+  if (!username || !password) return;
+  if (password !== confirm) {
+    _authMsg('As senhas não coincidem');
+    return;
+  }
+  if (password.length < 6) {
+    _authMsg('Senha deve ter ao menos 6 caracteres');
+    return;
+  }
+
+  if (!API_BASE) {
+    _authMsg('Servidor não disponível no modo local. Faça deploy no Vercel.', 'error');
+    return;
+  }
+
+  _authSetLoading('auth-register-btn', 'auth-register-btn-label', true);
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, email, password }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      _authMsg(data.error || 'Erro ao criar conta');
+      return;
+    }
+
+    _authMsg('Conta criada! Entrando...', 'success');
+    authSaveSession(data.token, data.user);
+    setTimeout(() => {
+      document.getElementById('auth-overlay')?.classList.add('hidden');
+      loadState();
+      navigateTo('home');
+    }, 800);
+  } catch(err) {
+    _authMsg('Erro de conexão. Verifique sua internet.');
+  } finally {
+    _authSetLoading('auth-register-btn', 'auth-register-btn-label', false, 'Criar Conta');
+  }
+}
+
+function authShowLogout() {
+  const user = authGetUser();
+  if (!user) return;
+  if (confirm(`Sair da conta de "${user.username}"?`)) {
+    authClearSession();
+    // Reset local state
+    state.workoutProgress = {};
+    state.studyProgress   = {};
+    state.studyTimeLog    = {};
+  }
+}
+
+// ── Sync functions ────────────────────────────────────────────────────────
+
+function _syncSetIndicator(status) {
+  // status: 'syncing' | 'done' | 'error' | ''
+  const el = document.getElementById('sync-indicator');
+  if (!el) return;
+  el.className = `sync-indicator ${status ? 'visible' : ''}${status === 'syncing' ? ' syncing' : ''}${status === 'error' ? ' error' : ''}`;
+  if (status === 'syncing') el.textContent = '↻ Sync';
+  else if (status === 'error') el.textContent = '✕ Offline';
+  else if (status === 'done') {
+    el.textContent = '✓ Salvo';
+    setTimeout(() => { el.className = 'sync-indicator'; }, 2000);
+  } else { el.textContent = ''; }
+}
+
+async function syncFromServer() {
+  if (!API_BASE) return;
+  const token = authGetToken();
+  if (!token) return;
+
+  _syncSetIndicator('syncing');
+  try {
+    const res = await fetch(`${API_BASE}/data`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) { _syncSetIndicator('error'); return; }
+
+    const data = await res.json();
+
+    // Merge server data (server wins over empty, client wins over equal)
+    if (data.workoutProgress && Object.keys(data.workoutProgress).length > 0) {
+      state.workoutProgress = data.workoutProgress;
+      localStorage.setItem('rotina_workout', JSON.stringify(state.workoutProgress));
+    }
+    if (data.studyProgress && Object.keys(data.studyProgress).length > 0) {
+      state.studyProgress = data.studyProgress;
+      localStorage.setItem('rotina_study', JSON.stringify(state.studyProgress));
+    }
+    if (data.studyTimeLog && Object.keys(data.studyTimeLog).length > 0) {
+      state.studyTimeLog = data.studyTimeLog;
+      localStorage.setItem('rotina_studytime', JSON.stringify(state.studyTimeLog));
+    }
+    if (data.dayOverrides) {
+      localStorage.setItem('rotina_overrides', JSON.stringify(data.dayOverrides));
+    }
+    if (data.generalOverrides) {
+      localStorage.setItem('rotina_general_overrides', JSON.stringify(data.generalOverrides));
+    }
+    if (data.customSheets) {
+      localStorage.setItem('rotina_custom_sheets', JSON.stringify(data.customSheets));
+    }
+
+    _syncSetIndicator('done');
+
+    // Re-render current view with fresh data
+    if (state.currentView === 'home')    renderHome();
+    else if (state.currentView === 'week')    renderWeek();
+    else if (state.currentView === 'workout') renderWorkout();
+    else if (state.currentView === 'study')   renderStudyView();
+  } catch(e) {
+    console.log('📴 Sync failed (offline?):', e.message);
+    _syncSetIndicator('error');
+  }
+}
+
+async function syncToServer() {
+  if (!API_BASE) return;
+  const token = authGetToken();
+  if (!token) return;
+
+  try {
+    await fetch(`${API_BASE}/data`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        workoutProgress:  state.workoutProgress,
+        studyProgress:    state.studyProgress,
+        studyTimeLog:     state.studyTimeLog,
+        dayOverrides:     loadDayOverrides(),
+        generalOverrides: loadGeneralOverrides(),
+      }),
+    });
+    _syncSetIndicator('done');
+  } catch(e) {
+    // Silently fail — data is safe in localStorage
+  }
+}
+
+async function syncSheetToServer(sheet) {
+  if (!API_BASE) return;
+  const token = authGetToken();
+  if (!token) return;
+  try {
+    await fetch(`${API_BASE}/sheets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ sheet }),
+    });
+  } catch(e) {}
+}
+
+async function deleteSheetFromServer(sheetId) {
+  if (!API_BASE) return;
+  const token = authGetToken();
+  if (!token) return;
+  try {
+    await fetch(`${API_BASE}/sheets?sheetId=${encodeURIComponent(sheetId)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch(e) {}
+}
+
+
 function saveState() {
   try {
     localStorage.setItem('rotina_workout', JSON.stringify(state.workoutProgress));
     localStorage.setItem('rotina_study', JSON.stringify(state.studyProgress));
     localStorage.setItem('rotina_studytime', JSON.stringify(state.studyTimeLog));
   } catch(e) {}
+  // Sync to server in background (non-blocking)
+  syncToServer();
 }
 
 function loadState() {
@@ -726,8 +1086,8 @@ function init() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
-  loadState();
-  navigateTo('home');
+  // Auth session check — renders app if valid, shows login otherwise
+  authInitSession();
 
   document.getElementById('timer-pause-btn').addEventListener('click', toggleTimer);
   document.getElementById('timer-stop-btn').addEventListener('click', () => {
@@ -742,7 +1102,6 @@ function init() {
   document.getElementById('media-modal').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
   });
-
 
   document.getElementById('library-search').addEventListener('input', e => onSearchInput(e.target.value));
 
@@ -1910,6 +2269,7 @@ function deleteCustomSheet(id) {
   if (!confirm(`Deletar a ficha "${name}"?`)) return;
   delete sheets[id];
   saveCustomSheets(sheets);
+  deleteSheetFromServer(id); // async background sync
   _renderSheetManagerList();
   showToast(`🗑 Ficha "${name}" deletada.`);
 }
@@ -2119,6 +2479,7 @@ function saveSheetEdit() {
   const custom = loadCustomSheets();
   custom[id] = sheetData;
   saveCustomSheets(custom);
+  syncSheetToServer(sheetData); // async background sync
 
   showToast(`✅ Ficha "${name}" salva!`);
 
