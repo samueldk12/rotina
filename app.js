@@ -1709,14 +1709,15 @@ function removeStudyItem(idx) {
 function _renderDeSheetPicker() {
   const picker = document.getElementById('de-sheet-picker');
   if (!picker) return;
-  picker.innerHTML = Object.values(WORKOUT_SHEETS).map(s => `
+  const allSheets = typeof getAllSheets === 'function' ? getAllSheets() : WORKOUT_SHEETS;
+  picker.innerHTML = Object.values(allSheets).map(s => `
     <button class="de-sheet-option ${_deState.sheetId === s.id ? 'active' : ''}"
             style="color:${_deState.sheetId === s.id ? s.color : 'var(--text-secondary)'}"
             onclick="selectDeSheet('${s.id}')">
       <div class="de-sheet-dot" style="background:${s.color}"></div>
       <div>
         <div style="font-weight:700">${s.name}</div>
-        <div style="font-size:10px;color:var(--text-muted);font-weight:500">${s.description}</div>
+        <div style="font-size:10px;color:var(--text-muted);font-weight:500">${s.description || s.subtitle || ''}</div>
       </div>
     </button>
   `).join('');
@@ -1807,5 +1808,322 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('day-edit-modal')?.addEventListener('click', function(e) {
     if (e.target === this) closeDayEditModal();
   });
+  document.getElementById('sheet-manager-modal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeSheetManager();
+  });
+  document.getElementById('sheet-editor-modal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeSheetEditor();
+  });
 });
 
+// =============================================
+//   SHEET MANAGER & EDITOR SYSTEM
+// =============================================
+
+const SE_COLORS = [
+  '#00d4ff','#7c3aed','#f59e0b','#22c55e','#ef4444',
+  '#06b6d4','#a855f7','#f97316','#ec4899','#8b5cf6',
+  '#14b8a6','#6366f1','#84cc16','#fb923c','#e879f9',
+];
+
+const SE_INTENSITY_MAP = {
+  high:   { label: 'Intenso',   icon: 'flame'    },
+  medium: { label: 'Moderado',  icon: 'dumbbell' },
+  low:    { label: 'Leve',      icon: 'leaf'     },
+};
+
+const SE_BLOCK_TYPES = ['circuit','normal','superset','bisset','triset','giantset','warmup','finisher','stretch'];
+
+// Internal editor state (prefix se_ to avoid conflicts)
+const _seState = {
+  editingId: null,    // null = new sheet
+  color: SE_COLORS[0],
+  blocks: [],         // [{type, exercises:[{name,sets,reps,rest}]}]
+};
+
+// ---- Custom sheet persistence ----
+
+function loadCustomSheets() {
+  try {
+    const raw = localStorage.getItem('rotina_custom_sheets');
+    return raw ? JSON.parse(raw) : {};
+  } catch(e) { return {}; }
+}
+
+function saveCustomSheets(data) {
+  try { localStorage.setItem('rotina_custom_sheets', JSON.stringify(data)); } catch(e) {}
+}
+
+/** Returns merged WORKOUT_SHEETS + custom sheets */
+function getAllSheets() {
+  const custom = loadCustomSheets();
+  return { ...WORKOUT_SHEETS, ...custom };
+}
+
+// ---- Sheet Manager ----
+
+function openSheetManager() {
+  _renderSheetManagerList();
+  document.getElementById('sheet-manager-modal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSheetManager() {
+  document.getElementById('sheet-manager-modal').classList.remove('show');
+  document.body.style.overflow = '';
+  // Refresh the picker in the day-edit modal
+  _renderDeSheetPicker();
+}
+
+function _renderSheetManagerList() {
+  const list = document.getElementById('sm-sheet-list');
+  if (!list) return;
+  const all = getAllSheets();
+  const custom = loadCustomSheets();
+
+  const cards = Object.values(all).map(s => {
+    const isCustom = !!custom[s.id];
+    const label = s.id.replace('ficha','F');
+    return `
+      <div class="sm-sheet-card">
+        <div class="sm-sheet-dot" style="background:${s.color}">${label}</div>
+        <div class="sm-sheet-info">
+          <div class="sm-sheet-name">${s.name}</div>
+          <div class="sm-sheet-sub">${s.subtitle || ''} ${s.focus ? '· ' + s.focus : ''}</div>
+        </div>
+        ${isCustom ? `
+          <div class="sm-sheet-actions">
+            <button class="sm-action-btn" onclick="openSheetEditor('${s.id}')" title="Editar">✎</button>
+            <button class="sm-action-btn del" onclick="deleteCustomSheet('${s.id}')" title="Deletar">✕</button>
+          </div>
+        ` : `<span class="sm-sheet-builtin">Padrão</span>`}
+      </div>
+    `;
+  }).join('');
+
+  list.innerHTML = cards || '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px;">Nenhuma ficha encontrada.</div>';
+}
+
+function deleteCustomSheet(id) {
+  const sheets = loadCustomSheets();
+  const name = sheets[id]?.name || id;
+  if (!confirm(`Deletar a ficha "${name}"?`)) return;
+  delete sheets[id];
+  saveCustomSheets(sheets);
+  _renderSheetManagerList();
+  showToast(`🗑 Ficha "${name}" deletada.`);
+}
+
+// ---- Sheet Editor ----
+
+function openSheetEditor(sheetId) {
+  _seState.editingId = sheetId;
+
+  if (sheetId) {
+    // Load existing (custom only — built-in sheets can be duplicated/cloned)
+    const all = getAllSheets();
+    const s = all[sheetId];
+    if (!s) return;
+    document.getElementById('se-title').textContent = 'Editar Ficha';
+    document.getElementById('se-subtitle').textContent = s.name;
+    document.getElementById('se-name').value = s.name;
+    document.getElementById('se-subtitle-inp').value = s.subtitle || '';
+    document.getElementById('se-focus').value = s.focus || '';
+    document.getElementById('se-estmin').value = s.estimatedMin || 60;
+    document.getElementById('se-intensity').value = s.intensityLevel || 'medium';
+    _seState.color = s.color || SE_COLORS[0];
+    _seState.blocks = JSON.parse(JSON.stringify(s.blocks || []));
+    // Convert built-in block format if needed
+    _seState.blocks = _seState.blocks.map(b => ({
+      type: b.type || 'normal',
+      exercises: (b.exercises || []).map(e => ({
+        name: e.name || '',
+        sets: e.sets || 3,
+        reps: e.reps || '10',
+        rest: e.restTime || e.rest || 60,
+      })),
+    }));
+  } else {
+    document.getElementById('se-title').textContent = 'Nova Ficha';
+    document.getElementById('se-subtitle').textContent = 'Crie sua ficha personalizada';
+    document.getElementById('se-name').value = '';
+    document.getElementById('se-subtitle-inp').value = '';
+    document.getElementById('se-focus').value = '';
+    document.getElementById('se-estmin').value = 60;
+    document.getElementById('se-intensity').value = 'medium';
+    _seState.color = SE_COLORS[Math.floor(Math.random() * SE_COLORS.length)];
+    _seState.blocks = [];
+  }
+
+  _renderSeColorPicker();
+  _renderSeBlocks();
+  // Close manager if open, open editor
+  document.getElementById('sheet-manager-modal').classList.remove('show');
+  document.getElementById('sheet-editor-modal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSheetEditor() {
+  document.getElementById('sheet-editor-modal').classList.remove('show');
+  document.body.style.overflow = '';
+  // Reopen manager
+  openSheetManager();
+}
+
+// ---- Color picker ----
+
+function _renderSeColorPicker() {
+  const el = document.getElementById('se-color-picker');
+  if (!el) return;
+  el.innerHTML = SE_COLORS.map(c =>
+    `<div class="se-color-dot ${c === _seState.color ? 'active' : ''}"
+          style="background:${c}" onclick="sePickColor('${c}')"></div>`
+  ).join('');
+}
+
+function sePickColor(c) {
+  _seState.color = c;
+  _renderSeColorPicker();
+}
+
+// ---- Blocks & Exercises ----
+
+function _renderSeBlocks() {
+  const el = document.getElementById('se-blocks-list');
+  if (!el) return;
+  if (_seState.blocks.length === 0) {
+    el.innerHTML = `<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:16px;border:1px dashed rgba(255,255,255,0.1);border-radius:8px;">
+      Nenhum bloco. Clique em "+ Bloco" para adicionar.
+    </div>`;
+    return;
+  }
+  el.innerHTML = _seState.blocks.map((block, bi) => `
+    <div class="se-block">
+      <div class="se-block-header">
+        <select class="se-block-type" onchange="seBlockTypeChange(${bi}, this.value)">
+          ${SE_BLOCK_TYPES.map(t => `<option value="${t}" ${block.type===t?'selected':''}>${_seBlockLabel(t)}</option>`).join('')}
+        </select>
+        <span style="font-size:11px;color:var(--text-muted);font-weight:600;">Bloco ${bi+1}</span>
+        <button class="se-block-remove" onclick="seRemoveBlock(${bi})">×</button>
+      </div>
+      <div class="se-exercise-list" id="se-ex-list-${bi}">
+        ${_renderSeExerciseRows(bi, block.exercises)}
+      </div>
+      <button class="se-add-ex-btn" onclick="seAddExercise(${bi})">+ Exercício</button>
+    </div>
+  `).join('');
+}
+
+function _seBlockLabel(t) {
+  const labels = {
+    circuit:'Circuito', normal:'Normal', superset:'Super-Set',
+    bisset:'Bi-Set', triset:'Tri-Set', giantset:'Giant-Set',
+    warmup:'Aquecimento', finisher:'Finisher', stretch:'Alongamento',
+  };
+  return labels[t] || t;
+}
+
+function _renderSeExerciseRows(bi, exercises) {
+  if (!exercises || exercises.length === 0) return `<div style="text-align:center;color:var(--text-muted);font-size:11px;padding:8px;">Sem exercícios</div>`;
+  return exercises.map((ex, ei) => `
+    <div class="se-exercise-row">
+      <input class="se-ex-inp" type="text" value="${_escHtml(ex.name)}" placeholder="Exercício"
+             onchange="seUpdateEx(${bi},${ei},'name',this.value)" />
+      <input class="se-ex-inp" type="number" value="${ex.sets||3}" placeholder="Séries" title="Séries"
+             onchange="seUpdateEx(${bi},${ei},'sets',+this.value)" style="text-align:center;" />
+      <input class="se-ex-inp" type="text" value="${ex.reps||'10'}" placeholder="Reps" title="Repetições"
+             onchange="seUpdateEx(${bi},${ei},'reps',this.value)" style="text-align:center;" />
+      <input class="se-ex-inp" type="number" value="${ex.rest||60}" placeholder="Des" title="Descanso (s)"
+             onchange="seUpdateEx(${bi},${ei},'rest',+this.value)" style="text-align:center;" />
+      <button class="se-ex-remove" onclick="seRemoveExercise(${bi},${ei})">×</button>
+    </div>
+  `).join('');
+}
+
+function seBlockTypeChange(bi, val) {
+  if (_seState.blocks[bi]) _seState.blocks[bi].type = val;
+}
+
+function seRemoveBlock(bi) {
+  _seState.blocks.splice(bi, 1);
+  _renderSeBlocks();
+}
+
+function seAddBlock() {
+  _seState.blocks.push({ type: 'normal', exercises: [] });
+  _renderSeBlocks();
+}
+
+function seAddExercise(bi) {
+  if (!_seState.blocks[bi]) return;
+  _seState.blocks[bi].exercises.push({ name: '', sets: 3, reps: '10', rest: 60 });
+  _renderSeBlocks();
+}
+
+function seRemoveExercise(bi, ei) {
+  if (!_seState.blocks[bi]) return;
+  _seState.blocks[bi].exercises.splice(ei, 1);
+  _renderSeBlocks();
+}
+
+function seUpdateEx(bi, ei, field, val) {
+  if (_seState.blocks[bi]?.exercises[ei]) {
+    _seState.blocks[bi].exercises[ei][field] = val;
+  }
+}
+
+// ---- Save sheet ----
+
+function saveSheetEdit() {
+  const name = document.getElementById('se-name').value.trim();
+  if (!name) { showToast('Digite um nome para a ficha!', 'error'); return; }
+
+  const subtitle = document.getElementById('se-subtitle-inp').value.trim();
+  const focus = document.getElementById('se-focus').value.trim();
+  const estmin = parseInt(document.getElementById('se-estmin').value) || 60;
+  const intensity = document.getElementById('se-intensity').value;
+  const intMap = SE_INTENSITY_MAP[intensity] || SE_INTENSITY_MAP.medium;
+
+  // Build ID (keep existing if editing)
+  const id = _seState.editingId && loadCustomSheets()[_seState.editingId]
+    ? _seState.editingId
+    : 'custom_' + Date.now();
+
+  const sheetData = {
+    id,
+    name,
+    subtitle: subtitle || name,
+    description: subtitle || 'Ficha personalizada',
+    focus,
+    color: _seState.color,
+    estimatedMin: estmin,
+    intensityLevel: intensity,
+    intensityLabel: intMap.label,
+    intensityIcon: intMap.icon,
+    isCustom: true,
+    blocks: _seState.blocks.map(b => ({
+      type: b.type,
+      exercises: b.exercises.map(e => ({
+        name: e.name,
+        sets: e.sets,
+        reps: e.reps,
+        restTime: e.rest,
+        muscles: [],
+        tips: '',
+        videoUrl: '',
+        imageKey: '',
+      })),
+    })),
+  };
+
+  const custom = loadCustomSheets();
+  custom[id] = sheetData;
+  saveCustomSheets(custom);
+
+  showToast(`✅ Ficha "${name}" salva!`);
+
+  // Close editor, go back to manager
+  document.getElementById('sheet-editor-modal').classList.remove('show');
+  document.body.style.overflow = '';
+  openSheetManager();
+}

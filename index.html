@@ -367,7 +367,10 @@
 
     <!-- WORKOUT TAB -->
     <div class="de-tab-content" id="de-content-workout">
-      <div class="de-section-label">Ficha de Treino</div>
+      <div class="de-section-label">
+        Ficha de Treino
+        <button class="de-add-btn" onclick="openSheetManager()" id="de-manage-sheets-btn">⚙ Gerenciar</button>
+      </div>
       <div class="de-sheet-picker" id="de-sheet-picker"></div>
       <div class="de-section-label" style="margin-top:14px;">Foco do Treino</div>
       <input type="text" class="de-input" id="de-workout-focus" placeholder="Ex: Ombro, Peito, Bíceps..." />
@@ -413,6 +416,84 @@
   </div>
 </div>
 
+<!-- SHEET MANAGER MODAL -->
+<div id="sheet-manager-modal" class="modal-overlay">
+  <div class="modal-sheet sm-sheet" role="dialog" aria-modal="true">
+    <div class="modal-handle"></div>
+    <div class="de-header">
+      <div>
+        <div class="de-title" id="sheet-manager-title">Fichas de Treino</div>
+        <div class="de-subtitle">Gerencie suas fichas personalizadas</div>
+      </div>
+      <button class="de-close" onclick="closeSheetManager()" id="sm-close-btn"></button>
+    </div>
+
+    <!-- Sheet list -->
+    <div id="sm-sheet-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;"></div>
+
+    <!-- Create button -->
+    <button class="de-save-btn" onclick="openSheetEditor(null)" style="background:linear-gradient(135deg,var(--purple),var(--cyan));" id="sm-create-btn">
+      <span id="sm-create-icon"></span> Nova Ficha
+    </button>
+  </div>
+</div>
+
+<!-- SHEET EDITOR MODAL -->
+<div id="sheet-editor-modal" class="modal-overlay">
+  <div class="modal-sheet se-sheet" role="dialog" aria-modal="true">
+    <div class="modal-handle"></div>
+    <div class="de-header">
+      <div>
+        <div class="de-title" id="se-title">Nova Ficha</div>
+        <div class="de-subtitle" id="se-subtitle">Crie sua ficha personalizada</div>
+      </div>
+      <button class="de-close" onclick="closeSheetEditor()" id="se-close-btn"></button>
+    </div>
+
+    <!-- Basic info -->
+    <div class="de-section-label" style="margin-bottom:8px;">Informações Básicas</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <input class="de-input" id="se-name" placeholder="Nome da ficha (ex: Peito A)" style="flex:1;margin-bottom:0;" />
+      <input class="de-input" id="se-subtitle-inp" placeholder="Subtítulo (ex: Hipertrofia)" style="flex:1;margin-bottom:0;" />
+    </div>
+
+    <!-- Color picker -->
+    <div class="de-section-label" style="margin-bottom:8px;">Cor</div>
+    <div id="se-color-picker" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;"></div>
+
+    <!-- Focus -->
+    <div class="de-section-label" style="margin-bottom:8px;">Foco / Grupos Musculares</div>
+    <input class="de-input" id="se-focus" placeholder="Ex: Peito, Tríceps, Ombro" />
+
+    <!-- Est time -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <div style="flex:1;">
+        <div class="de-section-label" style="margin-bottom:6px;">Tempo Estimado (min)</div>
+        <input class="de-input" id="se-estmin" type="number" placeholder="60" style="margin-bottom:0;" />
+      </div>
+      <div style="flex:1;">
+        <div class="de-section-label" style="margin-bottom:6px;">Nível</div>
+        <select class="de-input" id="se-intensity" style="margin-bottom:0;">
+          <option value="medium">Moderado</option>
+          <option value="high">Intenso</option>
+          <option value="low">Leve</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Exercises blocks -->
+    <div class="de-section-label">
+      Exercícios
+      <button class="de-add-btn" onclick="seAddBlock()">+ Bloco</button>
+    </div>
+    <div id="se-blocks-list" style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;margin-top:10px;"></div>
+
+    <button class="de-save-btn" onclick="saveSheetEdit()" id="se-save-btn">
+      <span id="se-save-icon"></span> Salvar Ficha
+    </button>
+  </div>
+</div>
+
 <!-- MEDIA MODAL -->
 <div id="media-modal" class="modal-overlay">
   <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -441,9 +522,9 @@
 </div>
 
 <!-- SCRIPTS: icons first, then data, then app -->
-<script src="./icons.js?v=21"></script>
-<script src="./data.js?v=21"></script>
-<script src="./app.js?v=21"></script>
+<script src="./icons.js?v=22"></script>
+<script src="./data.js?v=22"></script>
+<script src="./app.js?v=22"></script>
 
 <!-- Inject static icons after scripts load -->
 <script>
