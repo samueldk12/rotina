@@ -63,6 +63,7 @@ html, body {
 #app {
   display: flex;
   flex-direction: column;
+  height: 100vh;
   height: 100dvh;
   max-width: 480px;
   margin: 0 auto;
@@ -973,6 +974,7 @@ html, body {
 .modal-sheet {
   width: 100%;
   max-width: 480px;
+  max-height: 92vh;
   max-height: 92dvh;
   background: var(--bg-card);
   border-radius: var(--radius) var(--radius) 0 0;

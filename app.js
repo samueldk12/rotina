@@ -119,7 +119,7 @@ async function authInitSession() {
   // Session valid → update badge, sync data, show app
   _authUpdateBadge(user);
   document.getElementById('auth-overlay')?.classList.add('hidden');
-  document.getElementById('app').style.display = 'block';
+  document.getElementById('app').style.display = 'flex';
   loadState();
   navigateTo('home');
 
@@ -203,7 +203,7 @@ async function authLogin(e) {
 
     authSaveSession(data.token, data.user);
     document.getElementById('auth-overlay')?.classList.add('hidden');
-    document.getElementById('app').style.display = 'block';
+    document.getElementById('app').style.display = 'flex';
     loadState();
     navigateTo('home');
     syncFromServer();
@@ -257,7 +257,7 @@ async function authRegister(e) {
     authSaveSession(data.token, data.user);
     setTimeout(() => {
       document.getElementById('auth-overlay')?.classList.add('hidden');
-      document.getElementById('app').style.display = 'block';
+      document.getElementById('app').style.display = 'flex';
       loadState();
       navigateTo('home');
     }, 800);
