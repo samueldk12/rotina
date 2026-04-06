@@ -481,8 +481,9 @@ function isExerciseDone(sheetId, blockIdx, exIdx, totalSets) {
 }
 
 function countWorkoutProgress(sheetId) {
-  const sheet = WORKOUT_SHEETS[sheetId];
-  if (!sheet) return { done: 0, total: 0 };
+  const custom = loadCustomSheets();
+  const sheet = WORKOUT_SHEETS[sheetId] || custom[sheetId];
+  if (!sheet || !sheet.blocks) return { done: 0, total: 0 };
   let done = 0, total = 0;
   sheet.blocks.forEach((block, bi) => {
     block.exercises.forEach((ex, ei) => {
@@ -495,7 +496,7 @@ function countWorkoutProgress(sheetId) {
 }
 
 function countStudyProgress(dayNum) {
-  const routine = WEEKLY_ROUTINE[dayNum];
+  const routine = getEffectiveRoutine(dayNum);
   if (!routine) return { done: 0, total: 0 };
   const key = dayKey(dayNum);
   const total = routine.studies.length;
@@ -562,8 +563,9 @@ function navigateTo(view) {
 // ---- RENDER: HOME ----
 function renderHome() {
   const todayNum = new Date().getDay();
-  const routine = WEEKLY_ROUTINE[todayNum];
-  const sheet = WORKOUT_SHEETS[routine.workout.sheetId];
+  const routine = getEffectiveRoutine(todayNum);
+  const custom = loadCustomSheets();
+  const sheet = WORKOUT_SHEETS[routine.workout.sheetId] || custom[routine.workout.sheetId];
 
   document.getElementById('greeting-text').innerHTML =
     `${todayGreeting()}, <span>Atleta!</span>`;
@@ -598,20 +600,28 @@ function renderHome() {
         </div>
       </div>
     `;
-  }).join('');
+  }).join('') || '<div style="color:var(--text-muted);font-size:13px;padding:10px 0;">Nenhum estudo programado para hoje.</div>';
 
   // Workout card
-  document.getElementById('home-workout-card').innerHTML = `
-    <div class="workout-card-header">${getIntensityBadge(sheet)}</div>
-    <div class="workout-card-title">${sheet.name} · ${sheet.subtitle}</div>
-    <div class="workout-card-sub">${sheet.description}</div>
-    <div class="workout-card-focus">
-      ${icon('target', 14)} Foco: ${routine.workout.focus}
-    </div>
-    <button class="start-workout-btn" onclick="startWorkoutToday()">
-      ${icon('play', 18)} Iniciar Treino de Hoje
-    </button>
-  `;
+  if (sheet) {
+    document.getElementById('home-workout-card').innerHTML = `
+      <div class="workout-card-header">${getIntensityBadge(sheet)}</div>
+      <div class="workout-card-title">${sheet.name} · ${sheet.subtitle}</div>
+      <div class="workout-card-sub">${sheet.description || ''}</div>
+      <div class="workout-card-focus">
+        ${icon('target', 14)} Foco: ${routine.workout.focus || sheet.focus || ''}
+      </div>
+      <button class="start-workout-btn" onclick="startWorkoutToday()">
+        ${icon('play', 18)} Iniciar Treino de Hoje
+      </button>
+    `;
+  } else {
+    document.getElementById('home-workout-card').innerHTML = `
+      <div class="workout-card-title">Descanso / Dia Livre</div>
+      <div class="workout-card-sub">Nenhuma Ficha de Treino atribuída para este dia.</div>
+      <div class="workout-card-focus">${icon('moon', 14)} Recupere as energias.</div>
+    `;
+  }
 
   // Tips
   document.getElementById('home-tips').innerHTML = OPTIMIZATION_TIPS.map(t => `
@@ -646,7 +656,7 @@ function toggleStudy(dayNum, idx) {
 }
 
 function startWorkoutToday() {
-  state.selectedSheet = WEEKLY_ROUTINE[new Date().getDay()].workout.sheetId;
+  state.selectedSheet = getEffectiveRoutine(new Date().getDay()).workout.sheetId;
   navigateTo('workout');
 }
 
