@@ -557,7 +557,6 @@ function navigateTo(view) {
   else if (view === 'study') renderStudyView();
   else if (view === 'workout') renderWorkout();
   else if (view === 'library') renderLibrary();
-  else if (view === 'notes') renderNotes();
 }
 
 // ---- RENDER: HOME ----
@@ -980,8 +979,8 @@ function resetWorkout(sheetId) {
   renderWorkout();
 }
 
-// ---- RENDER: NOTES ----
-function renderNotes() {
+// ---- RENDER: NOTES MODAL ----
+window.openNotesModal = function() {
   const ta = document.getElementById('notes-textarea');
   if (ta && ta.value !== state.userNotes.text) ta.value = state.userNotes.text;
   
@@ -994,7 +993,12 @@ function renderNotes() {
   }
 
   _renderTodoList();
-}
+  document.getElementById('notes-modal').classList.add('show');
+};
+
+window.closeNotesModal = function() {
+  document.getElementById('notes-modal').classList.remove('show');
+};
 
 function _renderTodoList() {
   const list = document.getElementById('notes-todo-list');

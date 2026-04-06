@@ -2802,3 +2802,9 @@ select.de-input option { background: #0f172a; color: #fff; }
 #sync-indicator.visible { opacity: 1; }
 #sync-indicator.syncing { color: var(--cyan); }
 #sync-indicator.error { color: var(--red); }
+
+
+/* FAB NOTES */
+.fab-notes { position: fixed; bottom: 85px; right: 20px; width: 60px; height: 60px; border-radius: 30px; background: linear-gradient(135deg, var(--cyan), var(--blue)); border: none; outline: none; box-shadow: 0 4px 15px rgba(0,212,255,0.4); display: flex; align-items: center; justify-content: center; color: var(--bg-body); cursor: pointer; z-index: 99; transition: transform 0.2s, box-shadow 0.2s; }
+.fab-notes:hover, .fab-notes:active { transform: scale(1.05); box-shadow: 0 6px 20px rgba(0,212,255,0.6); }
+.fab-notes svg { width: 26px; height: 26px; }

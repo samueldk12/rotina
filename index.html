@@ -284,24 +284,6 @@
       <div style="height:20px;"></div>
     </section>
 
-    <!-- VIEW: NOTES (Anotações/Todo) -->
-    <section id="view-notes" class="view" style="display: none;">
-      <h2 class="view-title"><span class="section-icon">${icon('pen', 18)}</span> Bloco de Notas VIP</h2>
-      
-      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;">
-        <div class="de-section-label" style="display:flex;justify-content:space-between;align-items:center;">
-          <div>✅ Tarefas / Lembretes</div>
-          <button class="de-add-btn" onclick="addTodoItem()">+ Tarefa</button>
-        </div>
-        <div id="notes-todo-list" style="margin-top:12px;display:flex;flex-direction:column;gap:8px;"></div>
-      </div>
-
-      <div style="margin-top:20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;height:calc(100vh - 280px);display:flex;flex-direction:column;">
-        <div class="de-section-label">📝 Rascunhos Gerais</div>
-        <textarea id="notes-textarea" class="de-input" style="flex:1;resize:none;margin-bottom:0;" placeholder="Anote ideias livremente..."></textarea>
-      </div>
-    </section>
-
   </main>
 
   <!-- BOTTOM NAV -->
@@ -343,13 +325,15 @@
       </svg>
       <span>Exerc.</span>
     </button>
-    <button class="nav-btn" id="nav-notes" onclick="navigateTo('notes')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-      </svg>
-      <span>Notas</span>
     </button>
   </nav>
+
+  <!-- FLOATING NOTES BUTTON -->
+  <button id="fab-notes" aria-label="Anotações" onclick="openNotesModal()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+    </svg>
+  </button>
 
 </div><!-- #app -->
 
@@ -522,6 +506,34 @@
     <button class="de-save-btn" onclick="saveDayEdit()" id="de-save-btn">
       <span id="de-save-icon"></span> Salvar Alterações
     </button>
+  </div>
+</div>
+
+<!-- NOTES MODAL -->
+<div id="notes-modal" class="modal-overlay">
+  <div class="modal-sheet" role="dialog" aria-modal="true" style="height: 85vh; display: flex; flex-direction: column;">
+    <div class="modal-handle"></div>
+    <div class="modal-header" style="flex-shrink: 0;">
+      <div>
+        <div class="modal-title"><span class="section-icon">${icon('pen', 18)}</span> Bloco de Notas VIP</div>
+        <div class="modal-muscles">Anotações e tarefas diárias</div>
+      </div>
+      <button class="modal-close" onclick="closeNotesModal()" aria-label="Fechar" id="notes-close-icon"></button>
+    </div>
+    <div class="modal-body" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding: 20px;">
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;">
+        <div class="de-section-label" style="display:flex;justify-content:space-between;align-items:center;">
+          <div>✅ Tarefas / Lembretes</div>
+          <button class="de-add-btn" onclick="addTodoItem()">+ Tarefa</button>
+        </div>
+        <div id="notes-todo-list" style="margin-top:12px;display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+
+      <div style="margin-top:20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;flex: 1;display:flex;flex-direction:column;">
+        <div class="de-section-label">📝 Rascunhos Gerais</div>
+        <textarea id="notes-textarea" class="de-input" style="flex:1;resize:none;margin-bottom:0;" placeholder="Anote ideias livremente..."></textarea>
+      </div>
+    </div>
   </div>
 </div>
 
