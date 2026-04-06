@@ -260,6 +260,7 @@ async function authRegister(e) {
       document.getElementById('app').style.display = 'flex';
       loadState();
       navigateTo('home');
+      syncFromServer(); // ensure new user data (blank or default) is fetched
     }, 800);
   } catch(err) {
     _authMsg('Erro de conexão. Verifique sua internet.');
@@ -309,16 +310,16 @@ async function syncFromServer() {
 
     const data = await res.json();
 
-    // Merge server data (server wins over empty, client wins over equal)
-    if (data.workoutProgress && Object.keys(data.workoutProgress).length > 0) {
+    // Overwrite local with server (server is authoritative source)
+    if (data.workoutProgress) {
       state.workoutProgress = data.workoutProgress;
       localStorage.setItem('rotina_workout', JSON.stringify(state.workoutProgress));
     }
-    if (data.studyProgress && Object.keys(data.studyProgress).length > 0) {
+    if (data.studyProgress) {
       state.studyProgress = data.studyProgress;
       localStorage.setItem('rotina_study', JSON.stringify(state.studyProgress));
     }
-    if (data.studyTimeLog && Object.keys(data.studyTimeLog).length > 0) {
+    if (data.studyTimeLog) {
       state.studyTimeLog = data.studyTimeLog;
       localStorage.setItem('rotina_studytime', JSON.stringify(state.studyTimeLog));
     }
