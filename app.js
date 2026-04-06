@@ -67,6 +67,7 @@ function authClearSession() {
   localStorage.removeItem('rotina_token');
   localStorage.removeItem('rotina_user');
   _authUpdateBadge(null);
+  document.getElementById('app').style.display = 'none';
   document.getElementById('auth-overlay')?.classList.remove('hidden');
 }
 
@@ -116,6 +117,7 @@ async function authInitSession() {
   // Session valid → update badge, sync data, show app
   _authUpdateBadge(user);
   document.getElementById('auth-overlay')?.classList.add('hidden');
+  document.getElementById('app').style.display = 'block';
   loadState();
   navigateTo('home');
 
@@ -199,6 +201,7 @@ async function authLogin(e) {
 
     authSaveSession(data.token, data.user);
     document.getElementById('auth-overlay')?.classList.add('hidden');
+    document.getElementById('app').style.display = 'block';
     loadState();
     navigateTo('home');
     syncFromServer();
@@ -251,6 +254,7 @@ async function authRegister(e) {
     authSaveSession(data.token, data.user);
     setTimeout(() => {
       document.getElementById('auth-overlay')?.classList.add('hidden');
+      document.getElementById('app').style.display = 'block';
       loadState();
       navigateTo('home');
     }, 800);
