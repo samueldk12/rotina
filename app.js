@@ -36,6 +36,8 @@ const state = {
   pomodoroBreakMin: 5,
   pomodoroPhase: 'focus',   // 'focus' | 'break'
   pomodoroCount: 0,
+  // User Notes & Todo
+  userNotes: { text: '', todos: [] },
 };
 
 // =============================================
@@ -320,6 +322,10 @@ async function syncFromServer() {
       state.studyTimeLog = data.studyTimeLog;
       localStorage.setItem('rotina_studytime', JSON.stringify(state.studyTimeLog));
     }
+    if (data.userNotes) {
+      state.userNotes = data.userNotes;
+      localStorage.setItem('rotina_usernotes', JSON.stringify(state.userNotes));
+    }
     if (data.dayOverrides) {
       localStorage.setItem('rotina_overrides', JSON.stringify(data.dayOverrides));
     }
@@ -361,6 +367,7 @@ async function syncToServer() {
         studyTimeLog:     state.studyTimeLog,
         dayOverrides:     loadDayOverrides(),
         generalOverrides: loadGeneralOverrides(),
+        userNotes:        state.userNotes,
       }),
     });
     _syncSetIndicator('done');
@@ -400,6 +407,7 @@ function saveState() {
     localStorage.setItem('rotina_workout', JSON.stringify(state.workoutProgress));
     localStorage.setItem('rotina_study', JSON.stringify(state.studyProgress));
     localStorage.setItem('rotina_studytime', JSON.stringify(state.studyTimeLog));
+    localStorage.setItem('rotina_usernotes', JSON.stringify(state.userNotes));
   } catch(e) {}
   // Sync to server in background (non-blocking)
   syncToServer();
@@ -410,9 +418,11 @@ function loadState() {
     const w = localStorage.getItem('rotina_workout');
     const s = localStorage.getItem('rotina_study');
     const t = localStorage.getItem('rotina_studytime');
+    const n = localStorage.getItem('rotina_usernotes');
     if (w) state.workoutProgress = JSON.parse(w);
     if (s) state.studyProgress = JSON.parse(s);
     if (t) state.studyTimeLog = JSON.parse(t);
+    if (n) state.userNotes = JSON.parse(n);
   } catch(e) {}
 }
 
@@ -547,6 +557,7 @@ function navigateTo(view) {
   else if (view === 'study') renderStudyView();
   else if (view === 'workout') renderWorkout();
   else if (view === 'library') renderLibrary();
+  else if (view === 'notes') renderNotes();
 }
 
 // ---- RENDER: HOME ----
@@ -968,6 +979,70 @@ function resetWorkout(sheetId) {
   saveState();
   renderWorkout();
 }
+
+// ---- RENDER: NOTES ----
+function renderNotes() {
+  const ta = document.getElementById('notes-textarea');
+  if (ta && ta.value !== state.userNotes.text) ta.value = state.userNotes.text;
+  
+  if (ta && !ta.hasAttribute('data-bound')) {
+    ta.addEventListener('input', () => {
+      state.userNotes.text = ta.value;
+      saveState();
+    });
+    ta.setAttribute('data-bound', true);
+  }
+
+  _renderTodoList();
+}
+
+function _renderTodoList() {
+  const list = document.getElementById('notes-todo-list');
+  if (!list) return;
+
+  if (!state.userNotes.todos || state.userNotes.todos.length === 0) {
+    list.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Nenhuma tarefa adicionada.</div>';
+    return;
+  }
+
+  list.innerHTML = state.userNotes.todos.map((t, idx) => `
+    <div style="display:flex;align-items:center;background:var(--bg-card-hover);padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);">
+      <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggleTodo(${idx})" style="width:16px;height:16px;margin-right:12px;accent-color:var(--cyan);cursor:pointer;" />
+      <input type="text" class="de-input" value="${t.text || ''}" oninput="editTodo(${idx}, this.value)" style="margin-bottom:0;flex:1;background:transparent;border:none;padding:0;color:${t.done ? 'var(--text-muted)' : 'var(--text-primary)'};text-decoration:${t.done ? 'line-through' : 'none'};" />
+      <button class="sm-action-btn del" onclick="deleteTodo(${idx})" style="margin-left:8px;" title="Remover">✕</button>
+    </div>
+  `).join('');
+}
+
+window.addTodoItem = function() {
+  if (!state.userNotes.todos) state.userNotes.todos = [];
+  state.userNotes.todos.push({ text: '', done: false });
+  saveState();
+  _renderTodoList();
+};
+
+window.toggleTodo = function(idx) {
+  if (state.userNotes.todos[idx]) {
+    state.userNotes.todos[idx].done = !state.userNotes.todos[idx].done;
+    saveState();
+    _renderTodoList();
+  }
+};
+
+window.editTodo = function(idx, val) {
+  if (state.userNotes.todos[idx]) {
+    state.userNotes.todos[idx].text = val;
+    saveState();
+  }
+};
+
+window.deleteTodo = function(idx) {
+  if (state.userNotes.todos[idx]) {
+    state.userNotes.todos.splice(idx, 1);
+    saveState();
+    _renderTodoList();
+  }
+};
 
 // ---- RENDER: LIBRARY ----
 function renderLibrary() {
@@ -1850,22 +1925,22 @@ function getEffectiveRoutine(dayNum) {
   // Apply general override first
   if (genOverrides[dayNum]) {
     const g = genOverrides[dayNum];
-    if (g.studies) effective.studies = g.studies;
-    if (g.workout?.sheetId) effective.workout.sheetId = g.workout.sheetId;
-    if (g.workout?.focus) effective.workout.focus = g.workout.focus;
-    if (g.workout?.estimatedMin) effective.workout.estimatedMin = g.workout.estimatedMin;
-    if (g.notes) effective.notes = g.notes;
+    if (g.studies !== undefined) effective.studies = g.studies;
+    if (g.workout?.sheetId !== undefined) effective.workout.sheetId = g.workout.sheetId;
+    if (g.workout?.focus !== undefined) effective.workout.focus = g.workout.focus;
+    if (g.workout?.estimatedMin !== undefined) effective.workout.estimatedMin = g.workout.estimatedMin;
+    if (g.notes !== undefined) effective.notes = g.notes;
   }
 
   // Day-specific override on top (higher priority)
   if (dayOverrides[dayNum]) {
     const d = dayOverrides[dayNum];
-    if (d.studies) effective.studies = d.studies;
-    if (d.workout?.sheetId) effective.workout.sheetId = d.workout.sheetId;
-    if (d.workout?.focus) effective.workout.focus = d.workout.focus;
-    if (d.workout?.estimatedMin) effective.workout.estimatedMin = d.workout.estimatedMin;
-    if (d.extras) effective.extras = d.extras;
-    if (d.notes) effective.notes = d.notes;
+    if (d.studies !== undefined) effective.studies = d.studies;
+    if (d.workout?.sheetId !== undefined) effective.workout.sheetId = d.workout.sheetId;
+    if (d.workout?.focus !== undefined) effective.workout.focus = d.workout.focus;
+    if (d.workout?.estimatedMin !== undefined) effective.workout.estimatedMin = d.workout.estimatedMin;
+    if (d.extras !== undefined) effective.extras = d.extras;
+    if (d.notes !== undefined) effective.notes = d.notes;
   }
 
   return effective;

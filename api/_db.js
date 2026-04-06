@@ -45,8 +45,12 @@ async function initSchema() {
         study_time_log   JSONB NOT NULL DEFAULT '{}',
         day_overrides    JSONB NOT NULL DEFAULT '{}',
         general_overrides JSONB NOT NULL DEFAULT '{}',
+        user_notes       JSONB NOT NULL DEFAULT '{"text":"","todos":[]}',
         updated_at       TIMESTAMPTZ DEFAULT NOW()
       );
+      
+      -- Add column safely if table already existed without it
+      ALTER TABLE user_data ADD COLUMN IF NOT EXISTS user_notes JSONB NOT NULL DEFAULT '{"text":"","todos":[]}';
 
       -- Custom workout sheets per user
       CREATE TABLE IF NOT EXISTS custom_sheets (

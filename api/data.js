@@ -33,6 +33,7 @@ module.exports = async (req, res) => {
         studyTimeLog:     row.study_time_log    || {},
         dayOverrides:     row.day_overrides     || {},
         generalOverrides: row.general_overrides || {},
+        userNotes:        row.user_notes        || { text: '', todos: [] },
         customSheets:     sheets,
       });
     }
@@ -45,19 +46,21 @@ module.exports = async (req, res) => {
         studyTimeLog = {},
         dayOverrides = {},
         generalOverrides = {},
+        userNotes = { text: '', todos: [] },
       } = req.body || {};
 
       await pool.query(
         `INSERT INTO user_data
            (user_id, workout_progress, study_progress, study_time_log,
-            day_overrides, general_overrides, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,NOW())
+            day_overrides, general_overrides, user_notes, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())
          ON CONFLICT (user_id) DO UPDATE SET
            workout_progress  = $2,
            study_progress    = $3,
            study_time_log    = $4,
            day_overrides     = $5,
            general_overrides = $6,
+           user_notes        = $7,
            updated_at        = NOW()`,
         [
           userId,
@@ -66,6 +69,7 @@ module.exports = async (req, res) => {
           JSON.stringify(studyTimeLog),
           JSON.stringify(dayOverrides),
           JSON.stringify(generalOverrides),
+          JSON.stringify(userNotes),
         ]
       );
 
