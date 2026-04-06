@@ -2142,6 +2142,8 @@ function saveDayEdit() {
   }
 
   closeDayEditModal();
+  syncToServer(); // sync edits to database
+  
   // Refresh visible view
   if (state.currentView === 'week') renderWeek();
   else if (state.currentView === 'home') renderHome();
@@ -2162,6 +2164,8 @@ function resetDayOverride() {
 
   showToast('🔄 Rotina restaurada ao padrão!', 'success');
   closeDayEditModal();
+  syncToServer(); // sync deletion to database
+  
   if (state.currentView === 'week') renderWeek();
   else if (state.currentView === 'home') renderHome();
 }
